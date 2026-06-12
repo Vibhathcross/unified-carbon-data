@@ -149,11 +149,13 @@ export function analyzeJournalEntry(text, settings = defaultSettings) {
   };
 }
 
-// 2. Asynchronous hybrid analyzer (Calls Groq/OpenAI if configured, otherwise falls back to local)
+// 2. Asynchronous hybrid analyzer (Calls Groq/OpenAI/Ollama/Gemini/OpenRouter/Claude if configured, otherwise falls back to local)
 export async function analyzeJournalEntryAsync(text, settings = defaultSettings) {
   const conf = { ...defaultSettings, ...settings };
 
-  if (conf.llm_provider === 'local' || !conf.llm_api_key) {
+  // Ollama does not require an API key to run locally, others do
+  const needsApiKey = ['groq', 'openai', 'gemini', 'openrouter', 'claude'].includes(conf.llm_provider);
+  if (conf.llm_provider === 'local' || (needsApiKey && !conf.llm_api_key)) {
     // Return synchronous regex output
     return analyzeJournalEntry(text, conf);
   }
@@ -173,14 +175,12 @@ Return ONLY raw JSON. Do not include markdown \`\`\`json block wrapper or additi
 
   try {
     let url = '';
-    let headers = {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${conf.llm_api_key}`
-    };
+    let headers = { 'Content-Type': 'application/json' };
     let bodyData = {};
 
     if (conf.llm_provider === 'groq') {
       url = 'https://api.groq.com/openai/v1/chat/completions';
+      headers['Authorization'] = `Bearer ${conf.llm_api_key}`;
       bodyData = {
         model: conf.llm_model || 'llama-3.1-8b-instant',
         messages: [
@@ -192,6 +192,7 @@ Return ONLY raw JSON. Do not include markdown \`\`\`json block wrapper or additi
       };
     } else if (conf.llm_provider === 'openai') {
       url = 'https://api.openai.com/v1/chat/completions';
+      headers['Authorization'] = `Bearer ${conf.llm_api_key}`;
       bodyData = {
         model: conf.llm_model || 'gpt-4o-mini',
         messages: [
@@ -200,6 +201,64 @@ Return ONLY raw JSON. Do not include markdown \`\`\`json block wrapper or additi
         ],
         temperature: 0.2,
         response_format: { type: 'json_object' }
+      };
+    } else if (conf.llm_provider === 'openrouter') {
+      url = 'https://openrouter.ai/api/v1/chat/completions';
+      headers['Authorization'] = `Bearer ${conf.llm_api_key}`;
+      headers['HTTP-Referer'] = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173';
+      headers['X-Title'] = 'Aether Carbon Sync Matrix';
+      bodyData = {
+        model: conf.llm_model || 'meta-llama/llama-3-8b-instruct:free',
+        messages: [
+          { role: 'system', content: conf.llm_system_prompt },
+          { role: 'user', content: userPrompt }
+        ],
+        temperature: 0.2,
+        response_format: { type: 'json_object' }
+      };
+    } else if (conf.llm_provider === 'claude') {
+      url = 'https://api.anthropic.com/v1/messages';
+      headers['x-api-key'] = conf.llm_api_key;
+      headers['anthropic-version'] = '2023-06-01';
+      headers['dangerouslyAllowBrowser'] = 'true';
+      bodyData = {
+        model: conf.llm_model || 'claude-3-5-sonnet-20240620',
+        max_tokens: 1000,
+        system: conf.llm_system_prompt,
+        messages: [
+          { role: 'user', content: userPrompt }
+        ],
+        temperature: 0.2
+      };
+    } else if (conf.llm_provider === 'gemini') {
+      url = `https://generativelanguage.googleapis.com/v1beta/models/${conf.llm_model || 'gemini-1.5-flash'}:generateContent?key=${conf.llm_api_key}`;
+      bodyData = {
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              { text: `${conf.llm_system_prompt}\n\nActivity Log to analyze:\n${userPrompt}` }
+            ]
+          }
+        ],
+        generationConfig: {
+          temperature: 0.2,
+          responseMimeType: 'application/json'
+        }
+      };
+    } else if (conf.llm_provider === 'ollama') {
+      // If llm_api_key is set to a custom URL, use it; otherwise default to localhost
+      url = conf.llm_api_key && conf.llm_api_key.startsWith('http') 
+        ? conf.llm_api_key 
+        : 'http://localhost:11434/api/chat';
+      bodyData = {
+        model: conf.llm_model || 'llama3',
+        messages: [
+          { role: 'system', content: conf.llm_system_prompt },
+          { role: 'user', content: userPrompt }
+        ],
+        stream: false,
+        options: { temperature: 0.2 }
       };
     } else {
       throw new Error(`Unsupported LLM provider: ${conf.llm_provider}`);
@@ -217,22 +276,46 @@ Return ONLY raw JSON. Do not include markdown \`\`\`json block wrapper or additi
     }
 
     const resJson = await response.json();
-    const resultText = resJson.choices?.[0]?.message?.content;
+    let resultText = '';
+
+    if (['groq', 'openai', 'openrouter'].includes(conf.llm_provider)) {
+      resultText = resJson.choices?.[0]?.message?.content;
+    } else if (conf.llm_provider === 'claude') {
+      resultText = resJson.content?.[0]?.text;
+    } else if (conf.llm_provider === 'gemini') {
+      resultText = resJson.candidates?.[0]?.content?.parts?.[0]?.text;
+    } else if (conf.llm_provider === 'ollama') {
+      resultText = resJson.message?.content;
+    }
+
     if (!resultText) throw new Error('Empty response from LLM API');
 
-    // Parse the JSON returned by the model
-    // Remove markdown code blocks if the model ignored instructions
-    const cleanJsonText = resultText.replace(/```json/g, '').replace(/```/g, '').trim();
+    // Extract JSON block using regex to support models that output conversational text alongside JSON
+    const jsonMatch = resultText.match(/\{[\s\S]*\}/);
+    const cleanJsonText = jsonMatch ? jsonMatch[0].trim() : resultText.trim();
     const parsed = JSON.parse(cleanJsonText);
 
-    // Validate fields
+    // Robust float parser to handle strings like "8.5 kg" or nested objects
+    const getFloat = (val, fallback = 0) => {
+      if (typeof val === 'number') return val;
+      if (typeof val === 'string') {
+        const clean = val.replace(/[^\d.-]/g, '');
+        const num = parseFloat(clean);
+        return isNaN(num) ? fallback : num;
+      }
+      return fallback;
+    };
+
+    // Validate fields with strict sanitisation
     return {
-      calculated_kg: parseFloat(parsed.calculated_kg || 0),
-      efficiency_score: parseFloat(parsed.efficiency_score || 50),
+      calculated_kg: parseFloat(getFloat(parsed.calculated_kg, 3.5).toFixed(2)),
+      efficiency_score: parseFloat(Math.min(100, Math.max(0, getFloat(parsed.efficiency_score, 50))).toFixed(1)),
       category: ['transportation', 'diet', 'utilities', 'consumption', 'mixed'].includes(parsed.category) 
         ? parsed.category 
         : 'mixed',
-      suggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions.slice(0, 3) : ['Review carbon footprint impacts.']
+      suggestions: Array.isArray(parsed.suggestions) 
+        ? parsed.suggestions.slice(0, 3).map(s => String(s).trim()) 
+        : ['Review carbon footprint impacts.']
     };
   } catch (err) {
     console.error('LLM analysis error, falling back to local rules:', err);

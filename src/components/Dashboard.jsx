@@ -230,6 +230,15 @@ export default function Dashboard({
       setTimeout(() => setSettingsStatus(''), 3000)
     }
   }
+  const handleProviderChange = (provider) => {
+    setLlmProvider(provider)
+    if (provider === 'groq') setLlmModel('llama-3.1-8b-instant')
+    else if (provider === 'openai') setLlmModel('gpt-4o-mini')
+    else if (provider === 'gemini') setLlmModel('gemini-1.5-flash')
+    else if (provider === 'openrouter') setLlmModel('meta-llama/llama-3-8b-instruct:free')
+    else if (provider === 'claude') setLlmModel('claude-3-5-sonnet-20240620')
+    else if (provider === 'ollama') setLlmModel('llama3')
+  }
 
 
 
@@ -417,27 +426,37 @@ export default function Dashboard({
     if (!journalText.trim()) return
 
     setSubmitting(true)
-    setCurrentStepIndex(0)
     
-    // Premium loading sequence states
+    const providerName = appSettings?.llm_provider || 'local'
+    const providerLabel = providerName === 'local' ? 'Local Parser' : `${providerName.toUpperCase()} Engine`
+
     const steps = [
       'Establishing secure handshake with sync nodes...',
-      'Isolating text linguistic carbon vectors...',
-      'Calculating molecular CO2 emission coefficients...',
+      `Analyzing linguistic vectors via ${providerLabel}...`,
       'Synchronizing logs to Supabase ledger database...'
     ]
     setSyncSteps(steps)
 
-    // Run animation cycles for loading steps
-    for (let i = 0; i < steps.length; i++) {
-      setCurrentStepIndex(i)
-      await new Promise(resolve => setTimeout(resolve, 600 + Math.random() * 400))
+    // Step 1: Handshake
+    setCurrentStepIndex(0)
+    await new Promise(resolve => setTimeout(resolve, 600 + Math.random() * 200))
+
+    // Step 2: Live LLM Analysis
+    setCurrentStepIndex(1)
+    
+    let calculation
+    try {
+      calculation = await analyzeJournalEntryAsync(journalText, appSettings)
+    } catch (err) {
+      console.error('Linguistic calculation exception:', err)
+      calculation = analyzeJournalEntry(journalText, appSettings)
     }
 
+    // Step 3: Database ledger synchronization
+    setCurrentStepIndex(2)
+    await new Promise(resolve => setTimeout(resolve, 400))
+
     try {
-       // 1. Calculate score client-side or fetch from LLM
-      const calculation = await analyzeJournalEntryAsync(journalText, appSettings)
-      
       const newLog = {
         user_id: user.id,
         raw_text: journalText,
@@ -652,23 +671,34 @@ export default function Dashboard({
                         <label className="block text-[10px] font-bold text-green-800 uppercase font-mono">LLM Provider</label>
                         <select
                           value={llmProvider}
-                          onChange={(e) => setLlmProvider(e.target.value)}
+                          onChange={(e) => handleProviderChange(e.target.value)}
                           className="w-full p-2 rounded-lg bg-white/80 border border-green-200 text-xs font-mono focus:outline-none focus:border-green-500"
                         >
                           <option value="local">Local Regex Fallback</option>
                           <option value="groq">Groq AI Cloud API</option>
                           <option value="openai">OpenAI ChatGPT API</option>
+                          <option value="gemini">Google Gemini API</option>
+                          <option value="openrouter">OpenRouter API</option>
+                          <option value="claude">Anthropic Claude API</option>
+                          <option value="ollama">Ollama (Local LLM)</option>
                         </select>
                       </div>
 
-                      {/* API Key */}
+                      {/* API Key / URL & Model Config */}
                       {llmProvider !== 'local' && (
                         <>
                           <div className="space-y-1">
-                            <label className="block text-[10px] font-bold text-green-800 uppercase font-mono">API Key</label>
+                            <label className="block text-[10px] font-bold text-green-800 uppercase font-mono">
+                              {llmProvider === 'ollama' ? 'Ollama Host URL' : 'API Key'}
+                            </label>
                             <input
-                              type="password"
-                              placeholder="sk-..."
+                              type={llmProvider === 'ollama' ? 'text' : 'password'}
+                              placeholder={
+                                llmProvider === 'ollama' ? 'e.g. http://localhost:11434/api/chat' :
+                                llmProvider === 'gemini' ? 'AIzaSy...' :
+                                llmProvider === 'openrouter' ? 'sk-or-v1-...' :
+                                llmProvider === 'claude' ? 'sk-ant-...' : 'sk-...'
+                              }
                               value={llmApiKey}
                               onChange={(e) => setLlmApiKey(e.target.value)}
                               className="w-full p-2 rounded-lg bg-white/80 border border-green-200 text-xs font-mono focus:outline-none focus:border-green-500"
@@ -678,7 +708,14 @@ export default function Dashboard({
                             <label className="block text-[10px] font-bold text-green-800 uppercase font-mono">Model Name</label>
                             <input
                               type="text"
-                              placeholder={llmProvider === 'groq' ? 'llama-3.1-8b-instant' : 'gpt-4o-mini'}
+                              placeholder={
+                                llmProvider === 'groq' ? 'llama-3.1-8b-instant' :
+                                llmProvider === 'openai' ? 'gpt-4o-mini' :
+                                llmProvider === 'gemini' ? 'gemini-1.5-flash' :
+                                llmProvider === 'openrouter' ? 'meta-llama/llama-3-8b-instruct:free' :
+                                llmProvider === 'claude' ? 'claude-3-5-sonnet-20240620' :
+                                llmProvider === 'ollama' ? 'llama3' : 'model-name'
+                              }
                               value={llmModel}
                               onChange={(e) => setLlmModel(e.target.value)}
                               className="w-full p-2 rounded-lg bg-white/80 border border-green-200 text-xs font-mono focus:outline-none focus:border-green-500"
