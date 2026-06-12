@@ -12,39 +12,56 @@ import {
 // Popular models catalog for each supported LLM provider
 const providerModels = {
   groq: [
+    { value: 'llama-3.3-70b-specdec', label: 'Llama 3.3 70B SpecDec' },
+    { value: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B (Versatile)' },
+    { value: 'llama-3.1-70b-versatile', label: 'Llama 3.1 70B' },
     { value: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B (Instant)' },
-    { value: 'llama-3.1-70b-versatile', label: 'Llama 3.1 70B (Versatile)' },
-    { value: 'llama3-8b-8192', label: 'Llama 3 8B' },
     { value: 'llama3-70b-8192', label: 'Llama 3 70B' },
+    { value: 'llama3-8b-8192', label: 'Llama 3 8B' },
     { value: 'mixtral-8x7b-32768', label: 'Mixtral 8x7B' },
     { value: 'gemma2-9b-it', label: 'Gemma 2 9B' }
   ],
   openai: [
     { value: 'gpt-4o-mini', label: 'GPT-4o Mini (Recommended)' },
     { value: 'gpt-4o', label: 'GPT-4o' },
+    { value: 'o1-mini', label: 'o1 Mini' },
+    { value: 'o1-preview', label: 'o1 Preview' },
     { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' },
+    { value: 'gpt-4', label: 'GPT-4' },
     { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' }
   ],
   gemini: [
-    { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash (Recommended)' },
-    { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' },
-    { value: 'gemini-2.0-flash-exp', label: 'Gemini 2.0 Flash Exp' }
+    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (Recommended)' },
+    { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
+    { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
+    { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' },
+    { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' }
   ],
   openrouter: [
-    { value: 'meta-llama/llama-3-8b-instruct:free', label: 'Llama 3 8B (Free)' },
-    { value: 'google/gemini-flash-1.5', label: 'Gemini 1.5 Flash' },
-    { value: 'anthropic/claude-3.5-sonnet', label: 'Claude 3.5 Sonnet' },
+    { value: 'meta-llama/llama-3.3-70b-instruct', label: 'Llama 3.3 70B' },
     { value: 'meta-llama/llama-3.1-8b-instruct', label: 'Llama 3.1 8B' },
+    { value: 'meta-llama/llama-3-8b-instruct:free', label: 'Llama 3 8B (Free)' },
+    { value: 'google/gemini-2.0-flash-exp:free', label: 'Gemini 2.0 Flash (Free)' },
+    { value: 'google/gemini-flash-1.5', label: 'Gemini 1.5 Flash' },
+    { value: 'google/gemini-pro-1.5', label: 'Gemini 1.5 Pro' },
+    { value: 'anthropic/claude-3.5-sonnet', label: 'Claude 3.5 Sonnet' },
+    { value: 'anthropic/claude-3.5-haiku', label: 'Claude 3.5 Haiku' },
+    { value: 'deepseek/deepseek-chat', label: 'DeepSeek Chat V3 / R1' },
     { value: 'mistralai/mistral-7b-instruct:free', label: 'Mistral 7B (Free)' }
   ],
   claude: [
-    { value: 'claude-3-5-sonnet-20240620', label: 'Claude 3.5 Sonnet' },
-    { value: 'claude-3-haiku-20240307', label: 'Claude 3 Haiku' },
-    { value: 'claude-3-opus-20240229', label: 'Claude 3 Opus' }
+    { value: 'claude-3-5-sonnet-20241022', label: 'Claude 3.5 Sonnet' },
+    { value: 'claude-3-5-haiku-20241022', label: 'Claude 3.5 Haiku' },
+    { value: 'claude-3-opus-20240229', label: 'Claude 3 Opus' },
+    { value: 'claude-3-haiku-20240307', label: 'Claude 3 Haiku' }
   ],
   ollama: [
-    { value: 'llama3', label: 'Llama 3' },
+    { value: 'llama3.3', label: 'Llama 3.3' },
+    { value: 'llama3.2', label: 'Llama 3.2' },
     { value: 'llama3.1', label: 'Llama 3.1' },
+    { value: 'llama3', label: 'Llama 3' },
+    { value: 'deepseek-r1', label: 'DeepSeek R1' },
+    { value: 'qwen2.5', label: 'Qwen 2.5' },
     { value: 'gemma2', label: 'Gemma 2' },
     { value: 'mistral', label: 'Mistral' },
     { value: 'phi3', label: 'Phi 3' }
@@ -241,19 +258,12 @@ export default function Dashboard({
   }
   const handleProviderChange = (provider) => {
     setLlmProvider(provider)
-    if (provider === 'groq') setLlmModel('llama-3.1-8b-instant')
+    if (provider === 'groq') setLlmModel('llama-3.3-70b-specdec')
     else if (provider === 'openai') setLlmModel('gpt-4o-mini')
-    else if (provider === 'gemini') setLlmModel('gemini-1.5-flash')
-    else if (provider === 'openrouter') setLlmModel('meta-llama/llama-3-8b-instruct:free')
-    else if (provider === 'claude') setLlmModel('claude-3-5-sonnet-20240620')
-    else if (provider === 'ollama') setLlmModel('llama3')
-  }
-  const handleModelSelectChange = (val) => {
-    if (val === 'custom') {
-      setLlmModel('')
-    } else {
-      setLlmModel(val)
-    }
+    else if (provider === 'gemini') setLlmModel('gemini-2.5-flash')
+    else if (provider === 'openrouter') setLlmModel('meta-llama/llama-3.3-70b-instruct')
+    else if (provider === 'claude') setLlmModel('claude-3-5-sonnet-20241022')
+    else if (provider === 'ollama') setLlmModel('llama3.3')
   }
 
 
@@ -1787,34 +1797,15 @@ alter table app_settings disable row level security;`}
                         <div className="space-y-1">
                           <label className="block text-[10px] font-bold text-slate-500 uppercase font-mono">Model Name</label>
                           <select
-                            value={(() => {
-                              const models = providerModels[llmProvider] || []
-                              const matches = models.some(m => m.value === llmModel)
-                              return matches ? llmModel : 'custom'
-                            })()}
-                            onChange={(e) => handleModelSelectChange(e.target.value)}
+                            value={llmModel}
+                            onChange={(e) => setLlmModel(e.target.value)}
                             className="w-full p-2.5 rounded-xl bg-white border border-green-200/70 text-xs font-mono focus:outline-none focus:border-green-500 shadow-sm"
                           >
                             {(providerModels[llmProvider] || []).map(m => (
                               <option key={m.value} value={m.value}>{m.label}</option>
                             ))}
-                            <option value="custom">Custom Model Name...</option>
                           </select>
                         </div>
-
-                        {/* Custom Model Name Input Field (Only visible when custom is active) */}
-                        {(!((providerModels[llmProvider] || []).some(m => m.value === llmModel))) && (
-                          <div className="space-y-1">
-                            <label className="block text-[10px] font-bold text-slate-500 uppercase font-mono">Custom Model Name</label>
-                            <input
-                              type="text"
-                              placeholder="e.g. gpt-4o-mini"
-                              value={llmModel}
-                              onChange={(e) => setLlmModel(e.target.value)}
-                              className="w-full p-2.5 rounded-xl bg-white border border-green-200/70 text-xs font-mono focus:outline-none focus:border-green-500 shadow-sm"
-                            />
-                          </div>
-                        )}
 
                         {/* System Prompt */}
                         <div className="space-y-1">
