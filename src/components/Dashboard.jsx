@@ -189,19 +189,6 @@ export default function Dashboard({
   const [llmBaseUrl, setLlmBaseUrl] = useState('')
   const [llmModel, setLlmModel] = useState('llama-3.1-8b-instant')
   const [llmSystemPrompt, setLlmSystemPrompt] = useState('')
-  
-  const [multiplierCar, setMultiplierCar] = useState(8.5)
-  const [multiplierBusTrain, setMultiplierBusTrain] = useState(1.8)
-  const [multiplierFlight, setMultiplierFlight] = useState(120.0)
-  const [multiplierBeef, setMultiplierBeef] = useState(7.2)
-  const [multiplierChicken, setMultiplierChicken] = useState(2.4)
-  const [multiplierVegetarian, setMultiplierVegetarian] = useState(0.6)
-  const [multiplierDairy, setMultiplierDairy] = useState(1.9)
-  const [multiplierAc, setMultiplierAc] = useState(4.5)
-  const [multiplierLed, setMultiplierLed] = useState(0.3)
-  const [multiplierLaundry, setMultiplierLaundry] = useState(1.5)
-  const [multiplierShopping, setMultiplierShopping] = useState(9.0)
-  const [multiplierRecycle, setMultiplierRecycle] = useState(-1.2)
 
   const [savingSettings, setSavingSettings] = useState(false)
   const [settingsStatus, setSettingsStatus] = useState('')
@@ -214,18 +201,6 @@ export default function Dashboard({
       setLlmBaseUrl(appSettings.llm_base_url || '')
       setLlmModel(appSettings.llm_model || 'llama-3.1-8b-instant')
       setLlmSystemPrompt(appSettings.llm_system_prompt || '')
-      setMultiplierCar(appSettings.multiplier_car ?? 8.5)
-      setMultiplierBusTrain(appSettings.multiplier_bus_train ?? 1.8)
-      setMultiplierFlight(appSettings.multiplier_flight ?? 120.0)
-      setMultiplierBeef(appSettings.multiplier_beef ?? 7.2)
-      setMultiplierChicken(appSettings.multiplier_chicken ?? 2.4)
-      setMultiplierVegetarian(appSettings.multiplier_vegetarian ?? 0.6)
-      setMultiplierDairy(appSettings.multiplier_dairy ?? 1.9)
-      setMultiplierAc(appSettings.multiplier_ac ?? 4.5)
-      setMultiplierLed(appSettings.multiplier_led ?? 0.3)
-      setMultiplierLaundry(appSettings.multiplier_laundry ?? 1.5)
-      setMultiplierShopping(appSettings.multiplier_shopping ?? 9.0)
-      setMultiplierRecycle(appSettings.multiplier_recycle ?? -1.2)
     }
   }, [appSettings])
 
@@ -241,18 +216,6 @@ export default function Dashboard({
       llm_base_url: llmBaseUrl,
       llm_model: llmModel,
       llm_system_prompt: llmSystemPrompt,
-      multiplier_car: parseFloat(multiplierCar),
-      multiplier_bus_train: parseFloat(multiplierBusTrain),
-      multiplier_flight: parseFloat(multiplierFlight),
-      multiplier_beef: parseFloat(multiplierBeef),
-      multiplier_chicken: parseFloat(multiplierChicken),
-      multiplier_vegetarian: parseFloat(multiplierVegetarian),
-      multiplier_dairy: parseFloat(multiplierDairy),
-      multiplier_ac: parseFloat(multiplierAc),
-      multiplier_led: parseFloat(multiplierLed),
-      multiplier_laundry: parseFloat(multiplierLaundry),
-      multiplier_shopping: parseFloat(multiplierShopping),
-      multiplier_recycle: parseFloat(multiplierRecycle),
       updated_at: new Date().toISOString()
     }
 
@@ -1204,29 +1167,18 @@ create or replace trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
 
--- 6. Create App Settings Table for LLM and Multipliers
+-- 6. Create App Settings Table for LLM Configuration
 create table if not exists app_settings (
   id text primary key default 'global',
   llm_provider text default 'local',
   llm_api_key text default '',
+  llm_base_url text default '',
   llm_model text default 'llama-3.1-8b-instant',
   llm_system_prompt text default '',
-  multiplier_car numeric default 8.5,
-  multiplier_bus_train numeric default 1.8,
-  multiplier_flight numeric default 120.0,
-  multiplier_beef numeric default 7.2,
-  multiplier_chicken numeric default 2.4,
-  multiplier_vegetarian numeric default 0.6,
-  multiplier_dairy numeric default 1.9,
-  multiplier_ac numeric default 4.5,
-  multiplier_led numeric default 0.3,
-  multiplier_laundry numeric default 1.5,
-  multiplier_shopping numeric default 9.0,
-  multiplier_recycle numeric default -1.2,
   updated_at timestamp with time zone default now() not null
 );
 
--- Allow public read access (so anyone on the web can read the multipliers/LLM config)
+-- Allow public read access (so anyone on the web can read the LLM config)
 alter table app_settings disable row level security;`}
                     </pre>
                   </div>
@@ -1730,7 +1682,7 @@ alter table app_settings disable row level security;`}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
               transition={{ type: 'spring', damping: 25, stiffness: 180 }}
-              className="relative max-w-4xl w-full glass-panel rounded-3xl border border-green-200/60 p-6 md:p-8 shadow-2xl overflow-hidden bg-white/95 text-slate-800 flex flex-col max-h-[90vh] z-10 font-sans"
+              className="relative max-w-2xl w-full glass-panel rounded-3xl border border-green-200/60 p-6 md:p-8 shadow-2xl overflow-hidden bg-white/95 text-slate-800 flex flex-col max-h-[90vh] z-10 font-sans"
             >
               <div className="absolute top-0 right-0 w-32 h-32 bg-green-500/5 rounded-full filter blur-3xl pointer-events-none" />
               
@@ -1747,7 +1699,7 @@ alter table app_settings disable row level security;`}
                         ADMIN CONTROLS
                       </span>
                     </h2>
-                    <p className="text-xs text-slate-500 font-mono mt-0.5">Global configuration and emission coefficient matrices</p>
+                    <p className="text-xs text-slate-500 font-mono mt-0.5">Global configuration and linguistic gateway matrix</p>
                   </div>
                 </div>
                 <button 
@@ -1760,10 +1712,10 @@ alter table app_settings disable row level security;`}
 
               {/* Modal Content Scrollable area */}
               <div className="flex-1 overflow-y-auto pr-2 space-y-6 max-h-[60vh] custom-scrollbar">
-                <form onSubmit={handleSaveSettings} className="grid grid-cols-1 md:grid-cols-12 gap-6">
+                <form onSubmit={handleSaveSettings} className="space-y-6">
                   
-                  {/* Left Side: LLM Connect Configs (Col 6) */}
-                  <div className="col-span-1 md:col-span-6 space-y-4 pr-0 md:pr-4 md:border-r border-slate-200/60 text-left">
+                  {/* LLM Connect Configs */}
+                  <div className="space-y-4 text-left">
                     <h3 className="text-xs font-bold text-green-800 uppercase tracking-wider font-mono border-b border-green-100/40 pb-1.5 flex items-center gap-1.5">
                       <Terminal className="w-4 h-4 text-green-600" />
                       Linguistic LLM Gateways
@@ -1878,162 +1830,8 @@ alter table app_settings disable row level security;`}
                     )}
                   </div>
 
-                  {/* Right Side: Carbon Multipliers Configs (Col 6) */}
-                  <div className="col-span-1 md:col-span-6 space-y-4 text-left">
-                    <h3 className="text-xs font-bold text-green-800 uppercase tracking-wider font-mono border-b border-green-100/40 pb-1.5 flex items-center gap-1.5">
-                      <Leaf className="w-4 h-4 text-green-600" />
-                      Carbon Emission Multipliers (kg CO2)
-                    </h3>
-
-                    <div className="grid grid-cols-2 gap-4 text-xs">
-                      {/* Car Travel */}
-                      <div className="space-y-1">
-                        <span className="block text-[10px] text-slate-500 font-mono">🚗 Car / Mile</span>
-                        <input
-                          type="number"
-                          step="0.1"
-                          value={multiplierCar}
-                          onChange={(e) => setMultiplierCar(e.target.value)}
-                          className="w-full p-2 rounded-xl bg-white border border-green-200/70 font-mono focus:outline-none focus:border-green-500 shadow-sm"
-                        />
-                      </div>
-
-                      {/* Public Transit */}
-                      <div className="space-y-1">
-                        <span className="block text-[10px] text-slate-500 font-mono">🚄 Train & Bus / Trip</span>
-                        <input
-                          type="number"
-                          step="0.1"
-                          value={multiplierBusTrain}
-                          onChange={(e) => setMultiplierBusTrain(e.target.value)}
-                          className="w-full p-2 rounded-xl bg-white border border-green-200/70 font-mono focus:outline-none focus:border-green-500 shadow-sm"
-                        />
-                      </div>
-
-                      {/* Flight */}
-                      <div className="space-y-1">
-                        <span className="block text-[10px] text-slate-500 font-mono">✈️ Flight / Flight</span>
-                        <input
-                          type="number"
-                          step="1"
-                          value={multiplierFlight}
-                          onChange={(e) => setMultiplierFlight(e.target.value)}
-                          className="w-full p-2 rounded-xl bg-white border border-green-200/70 font-mono focus:outline-none focus:border-green-500 shadow-sm"
-                        />
-                      </div>
-
-                      {/* Beef */}
-                      <div className="space-y-1">
-                        <span className="block text-[10px] text-slate-500 font-mono">🥩 Red Meat / Meal</span>
-                        <input
-                          type="number"
-                          step="0.1"
-                          value={multiplierBeef}
-                          onChange={(e) => setMultiplierBeef(e.target.value)}
-                          className="w-full p-2 rounded-xl bg-white border border-green-200/70 font-mono focus:outline-none focus:border-green-500 shadow-sm"
-                        />
-                      </div>
-
-                      {/* Chicken */}
-                      <div className="space-y-1">
-                        <span className="block text-[10px] text-slate-500 font-mono">🍗 Poultry / Meal</span>
-                        <input
-                          type="number"
-                          step="0.1"
-                          value={multiplierChicken}
-                          onChange={(e) => setMultiplierChicken(e.target.value)}
-                          className="w-full p-2 rounded-xl bg-white border border-green-200/70 font-mono focus:outline-none focus:border-green-500 shadow-sm"
-                        />
-                      </div>
-
-                      {/* Vegan */}
-                      <div className="space-y-1">
-                        <span className="block text-[10px] text-slate-500 font-mono">🥗 Vegan Meal / Meal</span>
-                        <input
-                          type="number"
-                          step="0.1"
-                          value={multiplierVegetarian}
-                          onChange={(e) => setMultiplierVegetarian(e.target.value)}
-                          className="w-full p-2 rounded-xl bg-white border border-green-200/70 font-mono focus:outline-none focus:border-green-500 shadow-sm"
-                        />
-                      </div>
-
-                      {/* Dairy */}
-                      <div className="space-y-1">
-                        <span className="block text-[10px] text-slate-500 font-mono">🧀 Dairy / Serving</span>
-                        <input
-                          type="number"
-                          step="0.1"
-                          value={multiplierDairy}
-                          onChange={(e) => setMultiplierDairy(e.target.value)}
-                          className="w-full p-2 rounded-xl bg-white border border-green-200/70 font-mono focus:outline-none focus:border-green-500 shadow-sm"
-                        />
-                      </div>
-
-                      {/* Air Conditioning */}
-                      <div className="space-y-1">
-                        <span className="block text-[10px] text-slate-500 font-mono">❄️ HVAC / Hour</span>
-                        <input
-                          type="number"
-                          step="0.1"
-                          value={multiplierAc}
-                          onChange={(e) => setMultiplierAc(e.target.value)}
-                          className="w-full p-2 rounded-xl bg-white border border-green-200/70 font-mono focus:outline-none focus:border-green-500 shadow-sm"
-                        />
-                      </div>
-
-                      {/* LED Bulbs */}
-                      <div className="space-y-1">
-                        <span className="block text-[10px] text-slate-500 font-mono">💡 Lighting / Hour</span>
-                        <input
-                          type="number"
-                          step="0.1"
-                          value={multiplierLed}
-                          onChange={(e) => setMultiplierLed(e.target.value)}
-                          className="w-full p-2 rounded-xl bg-white border border-green-200/70 font-mono focus:outline-none focus:border-green-500 shadow-sm"
-                        />
-                      </div>
-
-                      {/* Laundry */}
-                      <div className="space-y-1">
-                        <span className="block text-[10px] text-slate-500 font-mono">🧺 Laundry / Load</span>
-                        <input
-                          type="number"
-                          step="0.1"
-                          value={multiplierLaundry}
-                          onChange={(e) => setMultiplierLaundry(e.target.value)}
-                          className="w-full p-2 rounded-xl bg-white border border-green-200/70 font-mono focus:outline-none focus:border-green-500 shadow-sm"
-                        />
-                      </div>
-
-                      {/* Shopping */}
-                      <div className="space-y-1">
-                        <span className="block text-[10px] text-slate-500 font-mono">🛍️ Shopping / Item</span>
-                        <input
-                          type="number"
-                          step="0.1"
-                          value={multiplierShopping}
-                          onChange={(e) => setMultiplierShopping(e.target.value)}
-                          className="w-full p-2 rounded-xl bg-white border border-green-200/70 font-mono focus:outline-none focus:border-green-500 shadow-sm"
-                        />
-                      </div>
-
-                      {/* Recycling */}
-                      <div className="space-y-1">
-                        <span className="block text-[10px] text-slate-500 font-mono">♻️ Recycling Offset</span>
-                        <input
-                          type="number"
-                          step="0.1"
-                          value={multiplierRecycle}
-                          onChange={(e) => setMultiplierRecycle(e.target.value)}
-                          className="w-full p-2 rounded-xl bg-white border border-green-200/70 font-mono focus:outline-none focus:border-green-500 shadow-sm"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
                   {/* Footer Action Bar */}
-                  <div className="col-span-1 md:col-span-12 pt-6 border-t border-slate-200/60 flex items-center justify-between mt-4">
+                  <div className="pt-6 border-t border-slate-200/60 flex items-center justify-between mt-4">
                     <div>
                       {settingsStatus && (
                         <p className="text-xs text-green-700 font-mono animate-pulse">{settingsStatus}</p>
