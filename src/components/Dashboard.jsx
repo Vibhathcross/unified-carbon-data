@@ -209,17 +209,34 @@ export default function Dashboard({
 
   const [savingSettings, setSavingSettings] = useState(false)
   const [settingsStatus, setSettingsStatus] = useState('')
+  const [dynamicModels, setDynamicModels] = useState([])
+  const [loadingModels, setLoadingModels] = useState(false)
 
   // Sync state values with global config props
   useEffect(() => {
     if (appSettings) {
-      setLlmProvider(appSettings.llm_provider || 'local')
+      const provider = appSettings.llm_provider || 'local'
+      setLlmProvider(provider)
       setLlmApiKey(appSettings.llm_api_key || '')
       setLlmBaseUrl(appSettings.llm_base_url || '')
-      setLlmModel(appSettings.llm_model || 'llama-3.1-8b-instant')
+      const model = appSettings.llm_model || 'llama-3.1-8b-instant'
+      setLlmModel(model)
       setLlmSystemPrompt(appSettings.llm_system_prompt || '')
+
+      // Seed initial models list with current model
+      const staticList = providerModels[provider] || []
+      const hasModel = staticList.some(m => m.value === model)
+      const list = hasModel ? staticList : [{ value: model, label: model }, ...staticList]
+      setDynamicModels(list)
     }
   }, [appSettings])
+
+  // Fetch models dynamically when admin panel opens or provider changes
+  useEffect(() => {
+    if (showAdminPanel) {
+      fetchProviderModels(llmProvider, llmApiKey, llmBaseUrl)
+    }
+  }, [showAdminPanel, llmProvider])
 
   const handleSaveSettings = async (e) => {
     e.preventDefault()
@@ -256,14 +273,115 @@ export default function Dashboard({
       setTimeout(() => setSettingsStatus(''), 3000)
     }
   }
+  // Fetch models dynamically from selected provider API
+  const fetchProviderModels = async (provider, apiKey, baseUrl) => {
+    if (provider === 'local') {
+      setDynamicModels([])
+      return
+    }
+    
+    setLoadingModels(true)
+    try {
+      if (provider === 'openrouter') {
+        const res = await fetch('https://openrouter.ai/api/v1/models')
+        if (!res.ok) throw new Error('Failed to fetch OpenRouter models')
+        const data = await res.json()
+        if (data && Array.isArray(data.data)) {
+          const models = data.data.map(m => ({
+            value: m.id,
+            label: m.name || m.id
+          }))
+          models.sort((a, b) => a.label.localeCompare(b.label))
+          if (llmModel && !models.some(m => m.value === llmModel)) {
+            models.unshift({ value: llmModel, label: llmModel })
+          }
+          setDynamicModels(models)
+          return
+        }
+      } else if (provider === 'ollama') {
+        const url = baseUrl || 'http://localhost:11434'
+        const res = await fetch(`${url}/api/tags`)
+        if (!res.ok) throw new Error('Failed to fetch Ollama models')
+        const data = await res.json()
+        if (data && Array.isArray(data.models)) {
+          const models = data.models.map(m => ({
+            value: m.name,
+            label: m.name
+          }))
+          if (llmModel && !models.some(m => m.value === llmModel)) {
+            models.unshift({ value: llmModel, label: llmModel })
+          }
+          setDynamicModels(models)
+          return
+        }
+      } else if (provider === 'groq' && apiKey) {
+        const url = baseUrl || 'https://api.groq.com/openai/v1/models'
+        const res = await fetch(url, {
+          headers: { 'Authorization': `Bearer ${apiKey}` }
+        })
+        if (res.ok) {
+          const data = await res.json()
+          if (data && Array.isArray(data.data)) {
+            const models = data.data.map(m => ({ value: m.id, label: m.id }))
+            if (llmModel && !models.some(m => m.value === llmModel)) {
+              models.unshift({ value: llmModel, label: llmModel })
+            }
+            setDynamicModels(models)
+            return
+          }
+        }
+      } else if (provider === 'openai' && apiKey) {
+        const url = baseUrl || 'https://api.openai.com/v1/models'
+        const res = await fetch(url, {
+          headers: { 'Authorization': `Bearer ${apiKey}` }
+        })
+        if (res.ok) {
+          const data = await res.json()
+          if (data && Array.isArray(data.data)) {
+            const models = data.data
+              .filter(m => m.id.startsWith('gpt') || m.id.startsWith('o1') || m.id.startsWith('o3'))
+              .map(m => ({ value: m.id, label: m.id }))
+            if (models.length > 0) {
+              if (llmModel && !models.some(m => m.value === llmModel)) {
+                models.unshift({ value: llmModel, label: llmModel })
+              }
+              setDynamicModels(models)
+              return
+            }
+          }
+        }
+      }
+      
+      // Fallback
+      setDynamicModels(providerModels[provider] || [])
+    } catch (err) {
+      console.warn(`Dynamic models fetch failed for ${provider}, using static fallback:`, err)
+      setDynamicModels(providerModels[provider] || [])
+    } finally {
+      setLoadingModels(false)
+    }
+  }
+
   const handleProviderChange = (provider) => {
     setLlmProvider(provider)
-    if (provider === 'groq') setLlmModel('llama-3.3-70b-specdec')
-    else if (provider === 'openai') setLlmModel('gpt-4o-mini')
-    else if (provider === 'gemini') setLlmModel('gemini-2.5-flash')
-    else if (provider === 'openrouter') setLlmModel('meta-llama/llama-3.3-70b-instruct')
-    else if (provider === 'claude') setLlmModel('claude-3-5-sonnet-20241022')
-    else if (provider === 'ollama') setLlmModel('llama3.3')
+    let defaultModel = ''
+    if (provider === 'groq') defaultModel = 'llama-3.3-70b-specdec'
+    else if (provider === 'openai') defaultModel = 'gpt-4o-mini'
+    else if (provider === 'gemini') defaultModel = 'gemini-2.5-flash'
+    else if (provider === 'openrouter') defaultModel = 'meta-llama/llama-3.3-70b-instruct'
+    else if (provider === 'claude') defaultModel = 'claude-3-5-sonnet-20241022'
+    else if (provider === 'ollama') defaultModel = 'llama3.3'
+    
+    setLlmModel(defaultModel)
+
+    // Prepopulate with static fallback models list immediately
+    const staticList = providerModels[provider] || []
+    const hasModel = staticList.some(m => m.value === defaultModel)
+    const list = hasModel ? staticList : [{ value: defaultModel, label: defaultModel }, ...staticList]
+    setDynamicModels(list)
+
+    // Trigger background fetch
+    fetchProviderModels(provider, llmApiKey, llmBaseUrl)
   }
 
 
@@ -1795,13 +1913,27 @@ alter table app_settings disable row level security;`}
 
                         {/* Model Name Dropdown */}
                         <div className="space-y-1">
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase font-mono">Model Name</label>
+                          <div className="flex justify-between items-center">
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase font-mono">Model Name</label>
+                            {llmProvider !== 'local' && (
+                              <button
+                                type="button"
+                                onClick={() => fetchProviderModels(llmProvider, llmApiKey, llmBaseUrl)}
+                                disabled={loadingModels}
+                                className="text-[9px] text-green-700 hover:text-green-800 font-mono font-bold flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                                title="Fetch available models from API"
+                              >
+                                <RefreshCw className={`w-2.5 h-2.5 ${loadingModels ? 'animate-spin' : ''}`} />
+                                Sync Live
+                              </button>
+                            )}
+                          </div>
                           <select
                             value={llmModel}
                             onChange={(e) => setLlmModel(e.target.value)}
                             className="w-full p-2.5 rounded-xl bg-white border border-green-200/70 text-xs font-mono focus:outline-none focus:border-green-500 shadow-sm"
                           >
-                            {(providerModels[llmProvider] || []).map(m => (
+                            {(dynamicModels || []).map(m => (
                               <option key={m.value} value={m.value}>{m.label}</option>
                             ))}
                           </select>
