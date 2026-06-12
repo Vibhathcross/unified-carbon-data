@@ -350,6 +350,50 @@ export default function Dashboard({
             }
           }
         }
+      } else if (provider === 'gemini' && apiKey) {
+        const geminiBase = baseUrl || 'https://generativelanguage.googleapis.com/v1beta/models'
+        const url = geminiBase.includes('?') ? `${geminiBase}&key=${apiKey}` : `${geminiBase}?key=${apiKey}`
+        const res = await fetch(url)
+        if (res.ok) {
+          const data = await res.json()
+          if (data && Array.isArray(data.models)) {
+            const models = data.models
+              .filter(m => m.supportedGenerationMethods?.includes('generateContent'))
+              .map(m => {
+                const name = m.name.startsWith('models/') ? m.name.replace('models/', '') : m.name
+                return { value: name, label: m.displayName || name }
+              })
+            if (models.length > 0) {
+              if (llmModel && !models.some(m => m.value === llmModel)) {
+                models.unshift({ value: llmModel, label: llmModel })
+              }
+              setDynamicModels(models)
+              return
+            }
+          }
+        }
+      } else if (provider === 'claude' && apiKey) {
+        const url = baseUrl || 'https://api.anthropic.com/v1/models'
+        const res = await fetch(url, {
+          headers: {
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+            'dangerouslyAllowBrowser': 'true'
+          }
+        })
+        if (res.ok) {
+          const data = await res.json()
+          if (data && Array.isArray(data.data)) {
+            const models = data.data.map(m => ({ value: m.id, label: m.display_name || m.id }))
+            if (models.length > 0) {
+              if (llmModel && !models.some(m => m.value === llmModel)) {
+                models.unshift({ value: llmModel, label: llmModel })
+              }
+              setDynamicModels(models)
+              return
+            }
+          }
+        }
       }
       
       // Fallback
