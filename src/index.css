@@ -1,0 +1,266 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&family=Dancing+Script:wght@500;700&display=swap');
+
+@import "tailwindcss";
+
+.font-cursive {
+  font-family: 'Dancing Script', cursive;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+:root {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color-scheme: light;
+}
+
+h1, h2, h3, h4, h5, h6, .font-title {
+  font-family: 'Outfit', sans-serif;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(circle at 50% 0%, #ffffff 0%, #f4f8f5 60%, #eef5f0 100%);
+  color: #1e293b; /* slate-800 */
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+}
+
+/* Enable momentum smooth scrolling on all overflow elements */
+.overflow-y-auto, .overflow-x-auto {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Glassmorphism Styles - Light Eco Version */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.48); /* high transparency for rich glass effect */
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.6); /* white reflection border edge */
+  box-shadow: 0 10px 40px -10px rgba(22, 101, 52, 0.05), 
+              0 1px 1px 0 rgba(22, 101, 52, 0.02);
+}
+
+.glass-panel-interactive {
+  background: rgba(255, 255, 255, 0.42);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-panel-interactive:hover {
+  background: rgba(255, 255, 255, 0.65);
+  border-color: rgba(34, 197, 94, 0.35); /* green-500/35 */
+  box-shadow: 0 15px 35px -5px rgba(34, 197, 94, 0.12);
+  transform: translateY(-2px);
+}
+
+.glass-input {
+  background: rgba(248, 250, 252, 0.9); /* slate-50 */
+  border: 1px solid rgba(34, 197, 94, 0.15);
+  border-radius: 12px;
+  color: #0f172a; /* slate-900 */
+  transition: all 0.2s ease;
+}
+
+.glass-input:focus {
+  outline: none;
+  border-color: rgba(34, 197, 94, 0.5); /* green-500/50 */
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
+  background: #ffffff;
+}
+
+/* Luminous Glow Borders - Green Accent */
+.glow-border-green {
+  border-color: rgba(34, 197, 94, 0.35);
+  box-shadow: 0 0 15px rgba(34, 197, 94, 0.1);
+}
+
+.glow-border-amber {
+  border-color: rgba(217, 119, 6, 0.35); /* amber-600 */
+  box-shadow: 0 0 15px rgba(217, 119, 6, 0.08);
+}
+
+/* Custom Scrollbar - Eco Theme */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(241, 245, 249, 0.5); /* slate-100 */
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(34, 197, 94, 0.25); /* green-500 */
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(22, 163, 74, 0.6); /* green-600 */
+}
+
+/* Scanline Effect - Softened for Light Theme */
+.scanline {
+  background: linear-gradient(
+    rgba(255, 255, 255, 0) 50%, 
+    rgba(22, 101, 52, 0.015) 50%
+  );
+  background-size: 100% 4px;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 0.05;
+  }
+  50% {
+    opacity: 0.15;
+  }
+}
+
+.glow-bg-green {
+  background: radial-gradient(circle, rgba(34, 197, 94, 0.12) 0%, rgba(0, 0, 0, 0) 70%);
+  animation: pulse-glow 6s infinite;
+}
+
+.glow-bg-amber {
+  background: radial-gradient(circle, rgba(217, 119, 6, 0.06) 0%, rgba(0, 0, 0, 0) 70%);
+  animation: pulse-glow 8s infinite alternate;
+}
+
+
+/* Green Smoke Animation Overlay */
+.smoke-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -10;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.smoke-particle {
+  position: absolute;
+  border-radius: 50%;
+  filter: url(#smoke-filter) blur(65px);
+  opacity: 0.38;
+  mix-blend-mode: normal;
+  will-change: transform, opacity;
+}
+
+.smoke-particle-1 {
+  width: 75vw;
+  height: 75vw;
+  background: radial-gradient(circle, rgba(34, 197, 94, 0.55) 0%, rgba(74, 222, 128, 0.25) 50%, rgba(255, 255, 255, 0) 80%);
+  top: -10%;
+  left: -20%;
+  animation: swirl-1 25s infinite ease-in-out alternate;
+}
+
+.smoke-particle-2 {
+  width: 65vw;
+  height: 65vw;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.5) 0%, rgba(20, 184, 166, 0.2) 50%, rgba(255, 255, 255, 0) 80%);
+  bottom: -10%;
+  right: -10%;
+  animation: swirl-2 30s infinite ease-in-out alternate;
+}
+
+.smoke-particle-3 {
+  width: 85vw;
+  height: 55vw;
+  background: radial-gradient(circle, rgba(132, 204, 22, 0.4) 0%, rgba(163, 230, 53, 0.15) 50%, rgba(255, 255, 255, 0) 80%);
+  top: 25%;
+  left: 15%;
+  animation: swirl-3 22s infinite ease-in-out alternate;
+}
+
+.smoke-particle-4 {
+  width: 60vw;
+  height: 60vw;
+  background: radial-gradient(circle, rgba(34, 197, 94, 0.45) 0%, rgba(21, 128, 61, 0.18) 50%, rgba(255, 255, 255, 0) 80%);
+  bottom: -20%;
+  left: -5%;
+  animation: swirl-4 35s infinite ease-in-out alternate;
+}
+
+@keyframes swirl-1 {
+  0% {
+    transform: translate(0, 0) scale(1) rotate(0deg);
+    opacity: 0.15;
+  }
+  50% {
+    transform: translate(12vw, -8vh) scale(1.1) rotate(90deg);
+    opacity: 0.25;
+  }
+  100% {
+    transform: translate(-5vw, 15vh) scale(0.9) rotate(180deg);
+    opacity: 0.15;
+  }
+}
+
+@keyframes swirl-2 {
+  0% {
+    transform: translate(0, 0) scale(1) rotate(0deg);
+    opacity: 0.12;
+  }
+  50% {
+    transform: translate(-15vw, 12vh) scale(1.2) rotate(-120deg);
+    opacity: 0.22;
+  }
+  100% {
+    transform: translate(5vw, -5vh) scale(0.95) rotate(-240deg);
+    opacity: 0.12;
+  }
+}
+
+@keyframes swirl-3 {
+  0% {
+    transform: translate(-8vw, 4vh) scale(0.95) rotate(0deg);
+    opacity: 0.12;
+  }
+  50% {
+    transform: translate(12vw, -8vh) scale(1.1) rotate(60deg);
+    opacity: 0.2;
+  }
+  100% {
+    transform: translate(-4vw, -4vh) scale(1) rotate(120deg);
+    opacity: 0.12;
+  }
+}
+
+@keyframes swirl-4 {
+  0% {
+    transform: translate(0, 0) scale(1) rotate(0deg);
+    opacity: 0.15;
+  }
+  50% {
+    transform: translate(8vw, -20vh) scale(1.15) rotate(180deg);
+    opacity: 0.28;
+  }
+  100% {
+    transform: translate(-8vw, 4vh) scale(0.85) rotate(360deg);
+    opacity: 0.15;
+  }
+}
+
+/* Falling Leaves Animation Keyframes */
+@keyframes fall-and-sway {
+  0% {
+    top: -8vh;
+    transform: translateX(0) rotate(var(--init-rot));
+  }
+  50% {
+    transform: translateX(var(--sway-x)) rotate(calc(var(--init-rot) + 180deg));
+  }
+  100% {
+    top: 108vh;
+    transform: translateX(0) rotate(calc(var(--init-rot) + 360deg));
+  }
+}
