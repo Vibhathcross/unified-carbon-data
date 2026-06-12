@@ -148,7 +148,7 @@ export default function Dashboard({ user, onLogout }) {
     try {
       setLoadingLogs(true)
       
-      const emailUser = user.email || 'sandbox@aether-carbon.com'
+      const emailUser = user.email || 'sandbox@gmail.com'
       const namePart = emailUser.split('@')[0]
       
       if (user.isSandbox) {

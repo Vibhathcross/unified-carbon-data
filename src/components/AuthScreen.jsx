@@ -33,7 +33,7 @@ export default function AuthScreen({ onAuthSuccess }) {
   // Map Eco-ID to virtual email
   const getVirtualEmail = (id) => {
     const cleanId = id.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9_-]/g, '')
-    return `${cleanId}@aether-carbon.com`
+    return `${cleanId}@gmail.com`
   }
 
   // Handle bypassing to Sandbox Local Mode
