@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabaseClient'
-import { analyzeJournalEntry } from '../utils/carbonAnalyzer'
+import { analyzeJournalEntry, analyzeJournalEntryAsync } from '../utils/carbonAnalyzer'
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion'
 import { 
   LogOut, Plus, Trash2, History, BarChart3, User, Award, 
@@ -113,7 +113,13 @@ function TiltCard({ children, className = '' }) {
   )
 }
 
-export default function Dashboard({ user, onLogout }) {
+export default function Dashboard({ 
+  user, 
+  onLogout, 
+  adminConfig = null, 
+  appSettings = null, 
+  onSettingsUpdate = null 
+}) {
   // UI Tabs for Mobile layout
   const [activeTab, setActiveTab] = useState('feed') // 'feed', 'new-entry', 'analytics', 'settings'
   const [showMobileEntrySheet, setShowMobileEntrySheet] = useState(false)
@@ -132,6 +138,98 @@ export default function Dashboard({ user, onLogout }) {
   // Settings view toggles
   const [showDevSettings, setShowDevSettings] = useState(false)
   const [dbConfigStatus, setDbConfigStatus] = useState('unknown') // 'connected', 'fallback', 'missing_tables', 'sandbox'
+
+  // Admin Config Panel States
+  const [showAdminPanel, setShowAdminPanel] = useState(false)
+  const [llmProvider, setLlmProvider] = useState('local')
+  const [llmApiKey, setLlmApiKey] = useState('')
+  const [llmModel, setLlmModel] = useState('llama-3.1-8b-instant')
+  const [llmSystemPrompt, setLlmSystemPrompt] = useState('')
+  
+  const [multiplierCar, setMultiplierCar] = useState(8.5)
+  const [multiplierBusTrain, setMultiplierBusTrain] = useState(1.8)
+  const [multiplierFlight, setMultiplierFlight] = useState(120.0)
+  const [multiplierBeef, setMultiplierBeef] = useState(7.2)
+  const [multiplierChicken, setMultiplierChicken] = useState(2.4)
+  const [multiplierVegetarian, setMultiplierVegetarian] = useState(0.6)
+  const [multiplierDairy, setMultiplierDairy] = useState(1.9)
+  const [multiplierAc, setMultiplierAc] = useState(4.5)
+  const [multiplierLed, setMultiplierLed] = useState(0.3)
+  const [multiplierLaundry, setMultiplierLaundry] = useState(1.5)
+  const [multiplierShopping, setMultiplierShopping] = useState(9.0)
+  const [multiplierRecycle, setMultiplierRecycle] = useState(-1.2)
+
+  const [savingSettings, setSavingSettings] = useState(false)
+  const [settingsStatus, setSettingsStatus] = useState('')
+
+  // Sync state values with global config props
+  useEffect(() => {
+    if (appSettings) {
+      setLlmProvider(appSettings.llm_provider || 'local')
+      setLlmApiKey(appSettings.llm_api_key || '')
+      setLlmModel(appSettings.llm_model || 'llama-3.1-8b-instant')
+      setLlmSystemPrompt(appSettings.llm_system_prompt || '')
+      setMultiplierCar(appSettings.multiplier_car ?? 8.5)
+      setMultiplierBusTrain(appSettings.multiplier_bus_train ?? 1.8)
+      setMultiplierFlight(appSettings.multiplier_flight ?? 120.0)
+      setMultiplierBeef(appSettings.multiplier_beef ?? 7.2)
+      setMultiplierChicken(appSettings.multiplier_chicken ?? 2.4)
+      setMultiplierVegetarian(appSettings.multiplier_vegetarian ?? 0.6)
+      setMultiplierDairy(appSettings.multiplier_dairy ?? 1.9)
+      setMultiplierAc(appSettings.multiplier_ac ?? 4.5)
+      setMultiplierLed(appSettings.multiplier_led ?? 0.3)
+      setMultiplierLaundry(appSettings.multiplier_laundry ?? 1.5)
+      setMultiplierShopping(appSettings.multiplier_shopping ?? 9.0)
+      setMultiplierRecycle(appSettings.multiplier_recycle ?? -1.2)
+    }
+  }, [appSettings])
+
+  const handleSaveSettings = async (e) => {
+    e.preventDefault()
+    setSavingSettings(true)
+    setSettingsStatus('')
+
+    const updated = {
+      id: 'global',
+      llm_provider: llmProvider,
+      llm_api_key: llmApiKey,
+      llm_model: llmModel,
+      llm_system_prompt: llmSystemPrompt,
+      multiplier_car: parseFloat(multiplierCar),
+      multiplier_bus_train: parseFloat(multiplierBusTrain),
+      multiplier_flight: parseFloat(multiplierFlight),
+      multiplier_beef: parseFloat(multiplierBeef),
+      multiplier_chicken: parseFloat(multiplierChicken),
+      multiplier_vegetarian: parseFloat(multiplierVegetarian),
+      multiplier_dairy: parseFloat(multiplierDairy),
+      multiplier_ac: parseFloat(multiplierAc),
+      multiplier_led: parseFloat(multiplierLed),
+      multiplier_laundry: parseFloat(multiplierLaundry),
+      multiplier_shopping: parseFloat(multiplierShopping),
+      multiplier_recycle: parseFloat(multiplierRecycle),
+      updated_at: new Date().toISOString()
+    }
+
+    try {
+      const { error } = await supabase
+        .from('app_settings')
+        .upsert([updated])
+      
+      if (error) throw error
+
+      setSettingsStatus('Global settings applied!')
+      localStorage.setItem('aether_app_settings', JSON.stringify(updated))
+      if (onSettingsUpdate) onSettingsUpdate()
+    } catch (err) {
+      console.warn('Supabase settings table write failed, saving to localStorage:', err)
+      localStorage.setItem('aether_app_settings', JSON.stringify(updated))
+      setSettingsStatus('Applied locally (local storage).')
+      if (onSettingsUpdate) onSettingsUpdate()
+    } finally {
+      setSavingSettings(false)
+      setTimeout(() => setSettingsStatus(''), 3000)
+    }
+  }
 
 
 
@@ -337,8 +435,8 @@ export default function Dashboard({ user, onLogout }) {
     }
 
     try {
-      // 1. Calculate score client-side (or fetch from edge function if available)
-      const calculation = analyzeJournalEntry(journalText)
+       // 1. Calculate score client-side or fetch from LLM
+      const calculation = await analyzeJournalEntryAsync(journalText, appSettings)
       
       const newLog = {
         user_id: user.id,
@@ -515,6 +613,174 @@ export default function Dashboard({ user, onLogout }) {
                   : 'LOCAL_FALLBACK_MODE'}
             </span>
           </div>
+
+           {/* Admin Config Dropdown Button (Only visible if adminConfig is loaded) */}
+          {adminConfig && (
+            <div className="relative">
+              <button
+                onClick={() => setShowAdminPanel(!showAdminPanel)}
+                className={`p-2 rounded-xl border transition-all flex items-center gap-2 text-xs font-bold font-mono cursor-pointer
+                  ${showAdminPanel 
+                    ? 'bg-green-600 text-white border-green-600 shadow-md shadow-green-600/10' 
+                    : 'text-green-700 hover:text-green-800 bg-green-500/10 hover:bg-green-500/20 border-green-200/60'
+                  }`}
+              >
+                <Settings className={`w-4 h-4 ${showAdminPanel ? 'animate-spin-slow' : ''}`} />
+                <span>Admin Configs</span>
+              </button>
+              
+              {/* Floating Dropdown Overlay */}
+              <AnimatePresence>
+                {showAdminPanel && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    className="absolute right-0 mt-2 w-80 glass-panel rounded-2xl border border-green-200 p-5 shadow-xl z-50 bg-white/95 text-slate-800 text-left font-sans"
+                  >
+                    <div className="flex items-center justify-between border-b border-green-200/40 pb-2 mb-4">
+                      <span className="text-xs font-bold text-green-800 font-mono flex items-center gap-1.5">
+                        <Terminal className="w-4 h-4 text-green-600" />
+                        GLOBAL CONFIGS
+                      </span>
+                      <span className="text-[9px] bg-green-600/10 text-green-700 px-1.5 py-0.5 rounded font-mono font-bold">Local Device</span>
+                    </div>
+
+                    <form onSubmit={handleSaveSettings} className="space-y-4">
+                      {/* LLM Provider */}
+                      <div className="space-y-1">
+                        <label className="block text-[10px] font-bold text-green-800 uppercase font-mono">LLM Provider</label>
+                        <select
+                          value={llmProvider}
+                          onChange={(e) => setLlmProvider(e.target.value)}
+                          className="w-full p-2 rounded-lg bg-white/80 border border-green-200 text-xs font-mono focus:outline-none focus:border-green-500"
+                        >
+                          <option value="local">Local Regex Fallback</option>
+                          <option value="groq">Groq AI Cloud API</option>
+                          <option value="openai">OpenAI ChatGPT API</option>
+                        </select>
+                      </div>
+
+                      {/* API Key */}
+                      {llmProvider !== 'local' && (
+                        <>
+                          <div className="space-y-1">
+                            <label className="block text-[10px] font-bold text-green-800 uppercase font-mono">API Key</label>
+                            <input
+                              type="password"
+                              placeholder="sk-..."
+                              value={llmApiKey}
+                              onChange={(e) => setLlmApiKey(e.target.value)}
+                              className="w-full p-2 rounded-lg bg-white/80 border border-green-200 text-xs font-mono focus:outline-none focus:border-green-500"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="block text-[10px] font-bold text-green-800 uppercase font-mono">Model Name</label>
+                            <input
+                              type="text"
+                              placeholder={llmProvider === 'groq' ? 'llama-3.1-8b-instant' : 'gpt-4o-mini'}
+                              value={llmModel}
+                              onChange={(e) => setLlmModel(e.target.value)}
+                              className="w-full p-2 rounded-lg bg-white/80 border border-green-200 text-xs font-mono focus:outline-none focus:border-green-500"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="block text-[10px] font-bold text-green-800 uppercase font-mono">System Prompt</label>
+                            <textarea
+                              rows="3"
+                              value={llmSystemPrompt}
+                              onChange={(e) => setLlmSystemPrompt(e.target.value)}
+                              className="w-full p-2 rounded-lg bg-white/80 border border-green-200 text-xs font-mono focus:outline-none focus:border-green-500 resize-none leading-normal"
+                            />
+                          </div>
+                        </>
+                      )}
+
+                      {/* Carbon Multipliers Section */}
+                      <div className="pt-2 border-t border-green-200/20">
+                        <span className="block text-[10px] font-bold text-green-800 uppercase font-mono mb-2">Multipliers (kg CO2)</span>
+                        <div className="grid grid-cols-2 gap-2 text-[10px]">
+                          <div>
+                            <span className="block text-[9px] text-slate-500 font-mono">🚗 Car / Mile</span>
+                            <input
+                              type="number"
+                              step="0.1"
+                              value={multiplierCar}
+                              onChange={(e) => setMultiplierCar(e.target.value)}
+                              className="w-full p-1 rounded-lg bg-white/80 border border-green-200 font-mono focus:outline-none"
+                            />
+                          </div>
+                          <div>
+                            <span className="block text-[9px] text-slate-500 font-mono">✈️ Flight</span>
+                            <input
+                              type="number"
+                              step="1"
+                              value={multiplierFlight}
+                              onChange={(e) => setMultiplierFlight(e.target.value)}
+                              className="w-full p-1 rounded-lg bg-white/80 border border-green-200 font-mono focus:outline-none"
+                            />
+                          </div>
+                          <div>
+                            <span className="block text-[9px] text-slate-500 font-mono">🥩 Beef Meal</span>
+                            <input
+                              type="number"
+                              step="0.1"
+                              value={multiplierBeef}
+                              onChange={(e) => setMultiplierBeef(e.target.value)}
+                              className="w-full p-1 rounded-lg bg-white/80 border border-green-200 font-mono focus:outline-none"
+                            />
+                          </div>
+                          <div>
+                            <span className="block text-[9px] text-slate-500 font-mono">🥗 Vegan Meal</span>
+                            <input
+                              type="number"
+                              step="0.1"
+                              value={multiplierVegetarian}
+                              onChange={(e) => setMultiplierVegetarian(e.target.value)}
+                              className="w-full p-1 rounded-lg bg-white/80 border border-green-200 font-mono focus:outline-none"
+                            />
+                          </div>
+                          <div>
+                            <span className="block text-[9px] text-slate-500 font-mono">❄️ AC / Hour</span>
+                            <input
+                              type="number"
+                              step="0.1"
+                              value={multiplierAc}
+                              onChange={(e) => setMultiplierAc(e.target.value)}
+                              className="w-full p-1 rounded-lg bg-white/80 border border-green-200 font-mono focus:outline-none"
+                            />
+                          </div>
+                          <div>
+                            <span className="block text-[9px] text-slate-500 font-mono">🛍️ Shopping Item</span>
+                            <input
+                              type="number"
+                              step="0.1"
+                              value={multiplierShopping}
+                              onChange={(e) => setMultiplierShopping(e.target.value)}
+                              className="w-full p-1 rounded-lg bg-white/80 border border-green-200 font-mono focus:outline-none"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={savingSettings}
+                        className="w-full py-2.5 bg-green-600 hover:bg-green-500 text-white rounded-xl text-xs font-bold font-mono transition-colors flex items-center justify-center gap-1.5 shadow-md shadow-green-600/10 cursor-pointer disabled:opacity-50"
+                      >
+                        {savingSettings ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Layers className="w-4 h-4" />}
+                        Apply settings
+                      </button>
+
+                      {settingsStatus && (
+                        <p className="text-[10px] text-green-700 font-mono text-center animate-pulse mt-2">{settingsStatus}</p>
+                      )}
+                    </form>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
 
           <button
             onClick={onLogout}
@@ -1014,7 +1280,32 @@ $$ language plpgsql security definer;
 
 create or replace trigger on_auth_user_created
   after insert on auth.users
-  for each row execute procedure public.handle_new_user();`}
+  for each row execute procedure public.handle_new_user();
+
+-- 6. Create App Settings Table for LLM and Multipliers
+create table if not exists app_settings (
+  id text primary key default 'global',
+  llm_provider text default 'local',
+  llm_api_key text default '',
+  llm_model text default 'llama-3.1-8b-instant',
+  llm_system_prompt text default '',
+  multiplier_car numeric default 8.5,
+  multiplier_bus_train numeric default 1.8,
+  multiplier_flight numeric default 120.0,
+  multiplier_beef numeric default 7.2,
+  multiplier_chicken numeric default 2.4,
+  multiplier_vegetarian numeric default 0.6,
+  multiplier_dairy numeric default 1.9,
+  multiplier_ac numeric default 4.5,
+  multiplier_led numeric default 0.3,
+  multiplier_laundry numeric default 1.5,
+  multiplier_shopping numeric default 9.0,
+  multiplier_recycle numeric default -1.2,
+  updated_at timestamp with time zone default now() not null
+);
+
+-- Allow public read access (so anyone on the web can read the multipliers/LLM config)
+alter table app_settings disable row level security;`}
                     </pre>
                   </div>
 

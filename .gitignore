@@ -12,6 +12,8 @@ dist
 dist-ssr
 *.local
 .env
+public/admin_config.json
+
 
 
 # Editor directories and files

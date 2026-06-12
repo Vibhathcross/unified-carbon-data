@@ -5,6 +5,8 @@ import Dashboard from './components/Dashboard'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Leaf, Shield, Globe, Cpu, RefreshCw } from 'lucide-react'
 import FallingLeaves from './components/FallingLeaves'
+import { defaultSettings } from './utils/carbonAnalyzer'
+
 
 export default function App() {
   const [session, setSession] = useState(null)
@@ -40,17 +42,80 @@ export default function App() {
     return () => clearInterval(interval)
   }, [isBooting])
 
-  // Monitor Supabase Auth changes
+  const [adminConfig, setAdminConfig] = useState(null)
+  const [appSettings, setAppSettings] = useState(defaultSettings)
+
+  const loadAppSettings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('app_settings')
+        .select('*')
+        .eq('id', 'global')
+        .single()
+      
+      if (!error && data) {
+        setAppSettings(data)
+      } else {
+        const localSettings = localStorage.getItem('aether_app_settings')
+        if (localSettings) {
+          setAppSettings(JSON.parse(localSettings))
+        }
+      }
+    } catch (err) {
+      console.error('Error loading app settings:', err)
+      const localSettings = localStorage.getItem('aether_app_settings')
+      if (localSettings) {
+        setAppSettings(JSON.parse(localSettings))
+      }
+    }
+  }
+
+  // Monitor Supabase Auth changes & Auto-login Admin Device
   useEffect(() => {
-    // Check active session
+    // 1. Load global settings
+    loadAppSettings()
+
+    // 2. Resolve authentication session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      setAuthLoading(false)
+      if (session) {
+        setSession(session)
+        setAuthLoading(false)
+      } else {
+        // If not authenticated, check if we are on an admin device to auto-login
+        const loggedOut = sessionStorage.getItem('admin_logged_out')
+        if (!loggedOut) {
+          fetch('/admin_config.json')
+            .then(res => {
+              if (res.ok) return res.json()
+              throw new Error('Not admin device')
+            })
+            .then(data => {
+              if (data.admin) {
+                setAdminConfig(data)
+                const adminUser = {
+                  id: 'admin-device-id',
+                  email: 'admin@aether-carbon.com',
+                  display_name: data.name || 'Vibhath T K (Admin)',
+                  isAdmin: true
+                }
+                setSession({ user: adminUser })
+              }
+              setAuthLoading(false)
+            })
+            .catch(() => {
+              setAuthLoading(false)
+            })
+        } else {
+          setAuthLoading(false)
+        }
+      }
     })
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session)
+      if (session) {
+        setSession(session)
+      }
       setAuthLoading(false)
     })
 
@@ -59,6 +124,9 @@ export default function App() {
 
   const handleLogout = async () => {
     try {
+      if (session?.user?.isAdmin) {
+        sessionStorage.setItem('admin_logged_out', 'true')
+      }
       await supabase.auth.signOut()
       setSession(null)
     } catch (err) {
@@ -176,7 +244,13 @@ export default function App() {
             animate={{ opacity: 1 }}
             transition={{ duration: 0.5 }}
           >
-            <Dashboard user={session.user} onLogout={handleLogout} />
+            <Dashboard 
+              user={session.user} 
+              onLogout={handleLogout} 
+              adminConfig={adminConfig}
+              appSettings={appSettings}
+              onSettingsUpdate={loadAppSettings}
+            />
           </motion.div>
         )}
       </AnimatePresence>
