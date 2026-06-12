@@ -4,6 +4,7 @@
 export const defaultSettings = {
   llm_provider: 'local',
   llm_api_key: '',
+  llm_base_url: '',
   llm_model: 'llama-3.1-8b-instant',
   llm_system_prompt: 'You are an environmental science AI model that estimates carbon footprint details based on daily activity descriptions. Calculate the footprint in kg of CO2 equivalent, provide an efficiency score from 0 to 100, select the primary category (transportation, diet, utilities, consumption, mixed), and provide 1 to 3 suggestions.',
   multiplier_car: 8.5,
@@ -179,7 +180,7 @@ Return ONLY raw JSON. Do not include markdown \`\`\`json block wrapper or additi
     let bodyData = {};
 
     if (conf.llm_provider === 'groq') {
-      url = 'https://api.groq.com/openai/v1/chat/completions';
+      url = conf.llm_base_url || 'https://api.groq.com/openai/v1/chat/completions';
       headers['Authorization'] = `Bearer ${conf.llm_api_key}`;
       bodyData = {
         model: conf.llm_model || 'llama-3.1-8b-instant',
@@ -191,7 +192,7 @@ Return ONLY raw JSON. Do not include markdown \`\`\`json block wrapper or additi
         response_format: { type: 'json_object' }
       };
     } else if (conf.llm_provider === 'openai') {
-      url = 'https://api.openai.com/v1/chat/completions';
+      url = conf.llm_base_url || 'https://api.openai.com/v1/chat/completions';
       headers['Authorization'] = `Bearer ${conf.llm_api_key}`;
       bodyData = {
         model: conf.llm_model || 'gpt-4o-mini',
@@ -203,7 +204,7 @@ Return ONLY raw JSON. Do not include markdown \`\`\`json block wrapper or additi
         response_format: { type: 'json_object' }
       };
     } else if (conf.llm_provider === 'openrouter') {
-      url = 'https://openrouter.ai/api/v1/chat/completions';
+      url = conf.llm_base_url || 'https://openrouter.ai/api/v1/chat/completions';
       headers['Authorization'] = `Bearer ${conf.llm_api_key}`;
       headers['HTTP-Referer'] = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173';
       headers['X-Title'] = 'Aether Carbon Sync Matrix';
@@ -217,7 +218,7 @@ Return ONLY raw JSON. Do not include markdown \`\`\`json block wrapper or additi
         response_format: { type: 'json_object' }
       };
     } else if (conf.llm_provider === 'claude') {
-      url = 'https://api.anthropic.com/v1/messages';
+      url = conf.llm_base_url || 'https://api.anthropic.com/v1/messages';
       headers['x-api-key'] = conf.llm_api_key;
       headers['anthropic-version'] = '2023-06-01';
       headers['dangerouslyAllowBrowser'] = 'true';
@@ -231,7 +232,8 @@ Return ONLY raw JSON. Do not include markdown \`\`\`json block wrapper or additi
         temperature: 0.2
       };
     } else if (conf.llm_provider === 'gemini') {
-      url = `https://generativelanguage.googleapis.com/v1beta/models/${conf.llm_model || 'gemini-1.5-flash'}:generateContent?key=${conf.llm_api_key}`;
+      const geminiBase = conf.llm_base_url || 'https://generativelanguage.googleapis.com/v1beta/models';
+      url = `${geminiBase}/${conf.llm_model || 'gemini-1.5-flash'}:generateContent?key=${conf.llm_api_key}`;
       bodyData = {
         contents: [
           {
@@ -247,10 +249,7 @@ Return ONLY raw JSON. Do not include markdown \`\`\`json block wrapper or additi
         }
       };
     } else if (conf.llm_provider === 'ollama') {
-      // If llm_api_key is set to a custom URL, use it; otherwise default to localhost
-      url = conf.llm_api_key && conf.llm_api_key.startsWith('http') 
-        ? conf.llm_api_key 
-        : 'http://localhost:11434/api/chat';
+      url = conf.llm_base_url || 'http://localhost:11434/api/chat';
       bodyData = {
         model: conf.llm_model || 'llama3',
         messages: [

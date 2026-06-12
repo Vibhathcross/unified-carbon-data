@@ -143,6 +143,7 @@ export default function Dashboard({
   const [showAdminPanel, setShowAdminPanel] = useState(false)
   const [llmProvider, setLlmProvider] = useState('local')
   const [llmApiKey, setLlmApiKey] = useState('')
+  const [llmBaseUrl, setLlmBaseUrl] = useState('')
   const [llmModel, setLlmModel] = useState('llama-3.1-8b-instant')
   const [llmSystemPrompt, setLlmSystemPrompt] = useState('')
   
@@ -167,6 +168,7 @@ export default function Dashboard({
     if (appSettings) {
       setLlmProvider(appSettings.llm_provider || 'local')
       setLlmApiKey(appSettings.llm_api_key || '')
+      setLlmBaseUrl(appSettings.llm_base_url || '')
       setLlmModel(appSettings.llm_model || 'llama-3.1-8b-instant')
       setLlmSystemPrompt(appSettings.llm_system_prompt || '')
       setMultiplierCar(appSettings.multiplier_car ?? 8.5)
@@ -193,6 +195,7 @@ export default function Dashboard({
       id: 'global',
       llm_provider: llmProvider,
       llm_api_key: llmApiKey,
+      llm_base_url: llmBaseUrl,
       llm_model: llmModel,
       llm_system_prompt: llmSystemPrompt,
       multiplier_car: parseFloat(multiplierCar),
@@ -648,172 +651,330 @@ export default function Dashboard({
                 <span>Admin Configs</span>
               </button>
               
-              {/* Floating Dropdown Overlay */}
+              {/* Centered Large Admin Config Modal */}
               <AnimatePresence>
                 {showAdminPanel && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                    className="absolute right-0 mt-2 w-80 glass-panel rounded-2xl border border-green-200 p-5 shadow-xl z-50 bg-white/95 text-slate-800 text-left font-sans"
-                  >
-                    <div className="flex items-center justify-between border-b border-green-200/40 pb-2 mb-4">
-                      <span className="text-xs font-bold text-green-800 font-mono flex items-center gap-1.5">
-                        <Terminal className="w-4 h-4 text-green-600" />
-                        GLOBAL CONFIGS
-                      </span>
-                      <span className="text-[9px] bg-green-600/10 text-green-700 px-1.5 py-0.5 rounded font-mono font-bold">Local Device</span>
-                    </div>
-
-                    <form onSubmit={handleSaveSettings} className="space-y-4">
-                      {/* LLM Provider */}
-                      <div className="space-y-1">
-                        <label className="block text-[10px] font-bold text-green-800 uppercase font-mono">LLM Provider</label>
-                        <select
-                          value={llmProvider}
-                          onChange={(e) => handleProviderChange(e.target.value)}
-                          className="w-full p-2 rounded-lg bg-white/80 border border-green-200 text-xs font-mono focus:outline-none focus:border-green-500"
-                        >
-                          <option value="local">Local Regex Fallback</option>
-                          <option value="groq">Groq AI Cloud API</option>
-                          <option value="openai">OpenAI ChatGPT API</option>
-                          <option value="gemini">Google Gemini API</option>
-                          <option value="openrouter">OpenRouter API</option>
-                          <option value="claude">Anthropic Claude API</option>
-                          <option value="ollama">Ollama (Local LLM)</option>
-                        </select>
-                      </div>
-
-                      {/* API Key / URL & Model Config */}
-                      {llmProvider !== 'local' && (
-                        <>
-                          <div className="space-y-1">
-                            <label className="block text-[10px] font-bold text-green-800 uppercase font-mono">
-                              {llmProvider === 'ollama' ? 'Ollama Host URL' : 'API Key'}
-                            </label>
-                            <input
-                              type={llmProvider === 'ollama' ? 'text' : 'password'}
-                              placeholder={
-                                llmProvider === 'ollama' ? 'e.g. http://localhost:11434/api/chat' :
-                                llmProvider === 'gemini' ? 'AIzaSy...' :
-                                llmProvider === 'openrouter' ? 'sk-or-v1-...' :
-                                llmProvider === 'claude' ? 'sk-ant-...' : 'sk-...'
-                              }
-                              value={llmApiKey}
-                              onChange={(e) => setLlmApiKey(e.target.value)}
-                              className="w-full p-2 rounded-lg bg-white/80 border border-green-200 text-xs font-mono focus:outline-none focus:border-green-500"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="block text-[10px] font-bold text-green-800 uppercase font-mono">Model Name</label>
-                            <input
-                              type="text"
-                              placeholder={
-                                llmProvider === 'groq' ? 'llama-3.1-8b-instant' :
-                                llmProvider === 'openai' ? 'gpt-4o-mini' :
-                                llmProvider === 'gemini' ? 'gemini-1.5-flash' :
-                                llmProvider === 'openrouter' ? 'meta-llama/llama-3-8b-instruct:free' :
-                                llmProvider === 'claude' ? 'claude-3-5-sonnet-20240620' :
-                                llmProvider === 'ollama' ? 'llama3' : 'model-name'
-                              }
-                              value={llmModel}
-                              onChange={(e) => setLlmModel(e.target.value)}
-                              className="w-full p-2 rounded-lg bg-white/80 border border-green-200 text-xs font-mono focus:outline-none focus:border-green-500"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="block text-[10px] font-bold text-green-800 uppercase font-mono">System Prompt</label>
-                            <textarea
-                              rows="3"
-                              value={llmSystemPrompt}
-                              onChange={(e) => setLlmSystemPrompt(e.target.value)}
-                              className="w-full p-2 rounded-lg bg-white/80 border border-green-200 text-xs font-mono focus:outline-none focus:border-green-500 resize-none leading-normal"
-                            />
-                          </div>
-                        </>
-                      )}
-
-                      {/* Carbon Multipliers Section */}
-                      <div className="pt-2 border-t border-green-200/20">
-                        <span className="block text-[10px] font-bold text-green-800 uppercase font-mono mb-2">Multipliers (kg CO2)</span>
-                        <div className="grid grid-cols-2 gap-2 text-[10px]">
-                          <div>
-                            <span className="block text-[9px] text-slate-500 font-mono">🚗 Car / Mile</span>
-                            <input
-                              type="number"
-                              step="0.1"
-                              value={multiplierCar}
-                              onChange={(e) => setMultiplierCar(e.target.value)}
-                              className="w-full p-1 rounded-lg bg-white/80 border border-green-200 font-mono focus:outline-none"
-                            />
-                          </div>
-                          <div>
-                            <span className="block text-[9px] text-slate-500 font-mono">✈️ Flight</span>
-                            <input
-                              type="number"
-                              step="1"
-                              value={multiplierFlight}
-                              onChange={(e) => setMultiplierFlight(e.target.value)}
-                              className="w-full p-1 rounded-lg bg-white/80 border border-green-200 font-mono focus:outline-none"
-                            />
-                          </div>
-                          <div>
-                            <span className="block text-[9px] text-slate-500 font-mono">🥩 Beef Meal</span>
-                            <input
-                              type="number"
-                              step="0.1"
-                              value={multiplierBeef}
-                              onChange={(e) => setMultiplierBeef(e.target.value)}
-                              className="w-full p-1 rounded-lg bg-white/80 border border-green-200 font-mono focus:outline-none"
-                            />
-                          </div>
-                          <div>
-                            <span className="block text-[9px] text-slate-500 font-mono">🥗 Vegan Meal</span>
-                            <input
-                              type="number"
-                              step="0.1"
-                              value={multiplierVegetarian}
-                              onChange={(e) => setMultiplierVegetarian(e.target.value)}
-                              className="w-full p-1 rounded-lg bg-white/80 border border-green-200 font-mono focus:outline-none"
-                            />
-                          </div>
-                          <div>
-                            <span className="block text-[9px] text-slate-500 font-mono">❄️ AC / Hour</span>
-                            <input
-                              type="number"
-                              step="0.1"
-                              value={multiplierAc}
-                              onChange={(e) => setMultiplierAc(e.target.value)}
-                              className="w-full p-1 rounded-lg bg-white/80 border border-green-200 font-mono focus:outline-none"
-                            />
-                          </div>
-                          <div>
-                            <span className="block text-[9px] text-slate-500 font-mono">🛍️ Shopping Item</span>
-                            <input
-                              type="number"
-                              step="0.1"
-                              value={multiplierShopping}
-                              onChange={(e) => setMultiplierShopping(e.target.value)}
-                              className="w-full p-1 rounded-lg bg-white/80 border border-green-200 font-mono focus:outline-none"
-                            />
+                  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+                    {/* Backdrop closer */}
+                    <div className="absolute inset-0 cursor-pointer" onClick={() => setShowAdminPanel(false)} />
+                    
+                    {/* Modal Card */}
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                      transition={{ type: 'spring', damping: 25, stiffness: 180 }}
+                      className="relative max-w-4xl w-full glass-panel rounded-3xl border border-green-200/60 p-6 md:p-8 shadow-2xl overflow-hidden bg-white/95 text-slate-800 flex flex-col max-h-[90vh] z-10 font-sans"
+                    >
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-green-500/5 rounded-full filter blur-3xl pointer-events-none" />
+                      
+                      {/* Modal Header */}
+                      <div className="flex items-center justify-between border-b border-green-200/30 pb-4 mb-6">
+                        <div className="flex items-center gap-2">
+                          <span className="p-2 bg-green-500/10 rounded-xl text-green-700">
+                            <Settings className="w-5 h-5 animate-spin-slow" />
+                          </span>
+                          <div className="text-left">
+                            <h2 className="text-xl font-bold tracking-tight text-slate-800 font-title flex items-center gap-2">
+                              AETHER SYNC MATRIX
+                              <span className="text-xs font-mono px-2 py-0.5 rounded bg-green-600/10 text-green-700 border border-green-200/50 font-bold">
+                                ADMIN CONTROLS
+                              </span>
+                            </h2>
+                            <p className="text-xs text-slate-500 font-mono mt-0.5">Global configuration and emission coefficient matrices</p>
                           </div>
                         </div>
+                        <button 
+                          onClick={() => setShowAdminPanel(false)}
+                          className="p-1.5 hover:bg-slate-100 rounded-xl border border-slate-200 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer text-xs font-bold font-mono px-3"
+                        >
+                          Close
+                        </button>
                       </div>
 
-                      <button
-                        type="submit"
-                        disabled={savingSettings}
-                        className="w-full py-2.5 bg-green-600 hover:bg-green-500 text-white rounded-xl text-xs font-bold font-mono transition-colors flex items-center justify-center gap-1.5 shadow-md shadow-green-600/10 cursor-pointer disabled:opacity-50"
-                      >
-                        {savingSettings ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Layers className="w-4 h-4" />}
-                        Apply settings
-                      </button>
+                      {/* Modal Content Scrollable area */}
+                      <div className="flex-1 overflow-y-auto pr-2 space-y-6 max-h-[60vh] custom-scrollbar">
+                        <form onSubmit={handleSaveSettings} className="grid grid-cols-1 md:grid-cols-12 gap-6">
+                          
+                          {/* Left Side: LLM Connect Configs (Col 6) */}
+                          <div className="col-span-1 md:col-span-6 space-y-4 pr-0 md:pr-4 md:border-r border-slate-200/60 text-left">
+                            <h3 className="text-xs font-bold text-green-800 uppercase tracking-wider font-mono border-b border-green-100/40 pb-1.5 flex items-center gap-1.5">
+                              <Terminal className="w-4 h-4 text-green-600" />
+                              Linguistic LLM Gateways
+                            </h3>
 
-                      {settingsStatus && (
-                        <p className="text-[10px] text-green-700 font-mono text-center animate-pulse mt-2">{settingsStatus}</p>
-                      )}
-                    </form>
-                  </motion.div>
+                            {/* LLM Provider */}
+                            <div className="space-y-1">
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase font-mono">LLM Provider</label>
+                              <select
+                                value={llmProvider}
+                                onChange={(e) => handleProviderChange(e.target.value)}
+                                className="w-full p-2.5 rounded-xl bg-white border border-green-200/70 text-xs font-mono focus:outline-none focus:border-green-500 shadow-sm"
+                              >
+                                <option value="local">Local Regex Fallback</option>
+                                <option value="groq">Groq AI Cloud API</option>
+                                <option value="openai">OpenAI ChatGPT API</option>
+                                <option value="gemini">Google Gemini API</option>
+                                <option value="openrouter">OpenRouter API</option>
+                                <option value="claude">Anthropic Claude API</option>
+                                <option value="ollama">Ollama (Local LLM)</option>
+                              </select>
+                            </div>
+
+                            {llmProvider !== 'local' && (
+                              <>
+                                {/* API Key */}
+                                <div className="space-y-1">
+                                  <label className="block text-[10px] font-bold text-slate-500 uppercase font-mono">
+                                    {llmProvider === 'ollama' ? 'Ollama Token / Config (Optional)' : 'API Key'}
+                                  </label>
+                                  <input
+                                    type={llmProvider === 'ollama' ? 'text' : 'password'}
+                                    placeholder={
+                                      llmProvider === 'ollama' ? 'Leave blank for default local host' :
+                                      llmProvider === 'gemini' ? 'AIzaSy...' :
+                                      llmProvider === 'openrouter' ? 'sk-or-v1-...' :
+                                      llmProvider === 'claude' ? 'sk-ant-...' : 'sk-...'
+                                    }
+                                    value={llmApiKey}
+                                    onChange={(e) => setLlmApiKey(e.target.value)}
+                                    className="w-full p-2.5 rounded-xl bg-white border border-green-200/70 text-xs font-mono focus:outline-none focus:border-green-500 shadow-sm"
+                                  />
+                                </div>
+
+                                {/* Base URL Override */}
+                                <div className="space-y-1">
+                                  <label className="block text-[10px] font-bold text-slate-500 uppercase font-mono">
+                                    API Base URL Override (Optional)
+                                  </label>
+                                  <input
+                                    type="text"
+                                    placeholder={
+                                      llmProvider === 'ollama' ? 'http://localhost:11434/api/chat' :
+                                      llmProvider === 'groq' ? 'https://api.groq.com/openai/v1/chat/completions' :
+                                      llmProvider === 'openai' ? 'https://api.openai.com/v1/chat/completions' :
+                                      llmProvider === 'gemini' ? 'https://generativelanguage.googleapis.com/v1beta/models' :
+                                      'e.g. http://localhost:8080/v1'
+                                    }
+                                    value={llmBaseUrl}
+                                    onChange={(e) => setLlmBaseUrl(e.target.value)}
+                                    className="w-full p-2.5 rounded-xl bg-white border border-green-200/70 text-xs font-mono focus:outline-none focus:border-green-500 shadow-sm"
+                                  />
+                                  <p className="text-[9px] text-slate-400 leading-snug font-mono mt-1">
+                                    * Custom URL override. Leave empty to use official defaults.
+                                  </p>
+                                </div>
+
+                                {/* Model Name */}
+                                <div className="space-y-1">
+                                  <label className="block text-[10px] font-bold text-slate-500 uppercase font-mono">Model Name</label>
+                                  <input
+                                    type="text"
+                                    placeholder="e.g. llama-3"
+                                    value={llmModel}
+                                    onChange={(e) => setLlmModel(e.target.value)}
+                                    className="w-full p-2.5 rounded-xl bg-white border border-green-200/70 text-xs font-mono focus:outline-none focus:border-green-500 shadow-sm"
+                                  />
+                                </div>
+
+                                {/* System Prompt */}
+                                <div className="space-y-1">
+                                  <label className="block text-[10px] font-bold text-slate-500 uppercase font-mono">System Prompt</label>
+                                  <textarea
+                                    rows="4"
+                                    value={llmSystemPrompt}
+                                    onChange={(e) => setLlmSystemPrompt(e.target.value)}
+                                    className="w-full p-2.5 rounded-xl bg-white border border-green-200/70 text-xs font-mono focus:outline-none focus:border-green-500 resize-none leading-relaxed shadow-sm"
+                                  />
+                                </div>
+                              </>
+                            )}
+                          </div>
+
+                          {/* Right Side: Carbon Multipliers Configs (Col 6) */}
+                          <div className="col-span-1 md:col-span-6 space-y-4 text-left">
+                            <h3 className="text-xs font-bold text-green-800 uppercase tracking-wider font-mono border-b border-green-100/40 pb-1.5 flex items-center gap-1.5">
+                              <Leaf className="w-4 h-4 text-green-600" />
+                              Carbon Emission Multipliers (kg CO2)
+                            </h3>
+
+                            <div className="grid grid-cols-2 gap-4 text-xs">
+                              {/* Car Travel */}
+                              <div className="space-y-1">
+                                <span className="block text-[10px] text-slate-500 font-mono">🚗 Car / Mile</span>
+                                <input
+                                  type="number"
+                                  step="0.1"
+                                  value={multiplierCar}
+                                  onChange={(e) => setMultiplierCar(e.target.value)}
+                                  className="w-full p-2 rounded-xl bg-white border border-green-200/70 font-mono focus:outline-none focus:border-green-500 shadow-sm"
+                                />
+                              </div>
+
+                              {/* Public Transit */}
+                              <div className="space-y-1">
+                                <span className="block text-[10px] text-slate-500 font-mono">🚄 Train & Bus / Trip</span>
+                                <input
+                                  type="number"
+                                  step="0.1"
+                                  value={multiplierBusTrain}
+                                  onChange={(e) => setMultiplierBusTrain(e.target.value)}
+                                  className="w-full p-2 rounded-xl bg-white border border-green-200/70 font-mono focus:outline-none focus:border-green-500 shadow-sm"
+                                />
+                              </div>
+
+                              {/* Flight */}
+                              <div className="space-y-1">
+                                <span className="block text-[10px] text-slate-500 font-mono">✈️ Flight / Flight</span>
+                                <input
+                                  type="number"
+                                  step="1"
+                                  value={multiplierFlight}
+                                  onChange={(e) => setMultiplierFlight(e.target.value)}
+                                  className="w-full p-2 rounded-xl bg-white border border-green-200/70 font-mono focus:outline-none focus:border-green-500 shadow-sm"
+                                />
+                              </div>
+
+                              {/* Beef */}
+                              <div className="space-y-1">
+                                <span className="block text-[10px] text-slate-500 font-mono">🥩 Red Meat / Meal</span>
+                                <input
+                                  type="number"
+                                  step="0.1"
+                                  value={multiplierBeef}
+                                  onChange={(e) => setMultiplierBeef(e.target.value)}
+                                  className="w-full p-2 rounded-xl bg-white border border-green-200/70 font-mono focus:outline-none focus:border-green-500 shadow-sm"
+                                />
+                              </div>
+
+                              {/* Chicken */}
+                              <div className="space-y-1">
+                                <span className="block text-[10px] text-slate-500 font-mono">🍗 Poultry / Meal</span>
+                                <input
+                                  type="number"
+                                  step="0.1"
+                                  value={multiplierChicken}
+                                  onChange={(e) => setMultiplierChicken(e.target.value)}
+                                  className="w-full p-2 rounded-xl bg-white border border-green-200/70 font-mono focus:outline-none focus:border-green-500 shadow-sm"
+                                />
+                              </div>
+
+                              {/* Vegan */}
+                              <div className="space-y-1">
+                                <span className="block text-[10px] text-slate-500 font-mono">🥗 Vegan Meal / Meal</span>
+                                <input
+                                  type="number"
+                                  step="0.1"
+                                  value={multiplierVegetarian}
+                                  onChange={(e) => setMultiplierVegetarian(e.target.value)}
+                                  className="w-full p-2 rounded-xl bg-white border border-green-200/70 font-mono focus:outline-none focus:border-green-500 shadow-sm"
+                                />
+                              </div>
+
+                              {/* Dairy */}
+                              <div className="space-y-1">
+                                <span className="block text-[10px] text-slate-500 font-mono">🧀 Dairy / Serving</span>
+                                <input
+                                  type="number"
+                                  step="0.1"
+                                  value={multiplierDairy}
+                                  onChange={(e) => setMultiplierDairy(e.target.value)}
+                                  className="w-full p-2 rounded-xl bg-white border border-green-200/70 font-mono focus:outline-none focus:border-green-500 shadow-sm"
+                                />
+                              </div>
+
+                              {/* Air Conditioning */}
+                              <div className="space-y-1">
+                                <span className="block text-[10px] text-slate-500 font-mono">❄️ HVAC / Hour</span>
+                                <input
+                                  type="number"
+                                  step="0.1"
+                                  value={multiplierAc}
+                                  onChange={(e) => setMultiplierAc(e.target.value)}
+                                  className="w-full p-2 rounded-xl bg-white border border-green-200/70 font-mono focus:outline-none focus:border-green-500 shadow-sm"
+                                />
+                              </div>
+
+                              {/* LED Bulbs */}
+                              <div className="space-y-1">
+                                <span className="block text-[10px] text-slate-500 font-mono">💡 Lighting / Hour</span>
+                                <input
+                                  type="number"
+                                  step="0.1"
+                                  value={multiplierLed}
+                                  onChange={(e) => setMultiplierLed(e.target.value)}
+                                  className="w-full p-2 rounded-xl bg-white border border-green-200/70 font-mono focus:outline-none focus:border-green-500 shadow-sm"
+                                />
+                              </div>
+
+                              {/* Laundry */}
+                              <div className="space-y-1">
+                                <span className="block text-[10px] text-slate-500 font-mono">🧺 Laundry / Load</span>
+                                <input
+                                  type="number"
+                                  step="0.1"
+                                  value={multiplierLaundry}
+                                  onChange={(e) => setMultiplierLaundry(e.target.value)}
+                                  className="w-full p-2 rounded-xl bg-white border border-green-200/70 font-mono focus:outline-none focus:border-green-500 shadow-sm"
+                                />
+                              </div>
+
+                              {/* Shopping */}
+                              <div className="space-y-1">
+                                <span className="block text-[10px] text-slate-500 font-mono">🛍️ Shopping / Item</span>
+                                <input
+                                  type="number"
+                                  step="0.1"
+                                  value={multiplierShopping}
+                                  onChange={(e) => setMultiplierShopping(e.target.value)}
+                                  className="w-full p-2 rounded-xl bg-white border border-green-200/70 font-mono focus:outline-none focus:border-green-500 shadow-sm"
+                                />
+                              </div>
+
+                              {/* Recycling */}
+                              <div className="space-y-1">
+                                <span className="block text-[10px] text-slate-500 font-mono">♻️ Recycling Offset</span>
+                                <input
+                                  type="number"
+                                  step="0.1"
+                                  value={multiplierRecycle}
+                                  onChange={(e) => setMultiplierRecycle(e.target.value)}
+                                  className="w-full p-2 rounded-xl bg-white border border-green-200/70 font-mono focus:outline-none focus:border-green-500 shadow-sm"
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Footer Action Bar */}
+                          <div className="col-span-1 md:col-span-12 pt-6 border-t border-slate-200/60 flex items-center justify-between mt-4">
+                            <div>
+                              {settingsStatus && (
+                                <p className="text-xs text-green-700 font-mono animate-pulse">{settingsStatus}</p>
+                              )}
+                            </div>
+                            <div className="flex gap-3">
+                              <button
+                                type="button"
+                                onClick={() => setShowAdminPanel(false)}
+                                className="px-5 py-2.5 rounded-xl border border-slate-200 hover:border-slate-300 text-xs font-bold text-slate-600 transition-colors cursor-pointer"
+                              >
+                                Close
+                              </button>
+                              <button
+                                type="submit"
+                                disabled={savingSettings}
+                                className="px-6 py-2.5 bg-green-600 hover:bg-green-500 text-white rounded-xl text-xs font-bold font-mono transition-all flex items-center gap-1.5 shadow-md shadow-green-600/10 cursor-pointer disabled:opacity-50"
+                              >
+                                {savingSettings ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Layers className="w-4 h-4" />}
+                                Publish Settings
+                              </button>
+                            </div>
+                          </div>
+
+                        </form>
+                      </div>
+                    </motion.div>
+                  </div>
                 )}
               </AnimatePresence>
             </div>
