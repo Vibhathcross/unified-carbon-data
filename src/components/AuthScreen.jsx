@@ -93,16 +93,32 @@ export default function AuthScreen({ onAuthSuccess }) {
 
     try {
       if (isSignUp) {
-        // 1. Sign up user in Supabase Auth
+        // 1. Sign up user in Supabase Auth with metadata
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email,
           password,
+          options: {
+            data: {
+              display_name: ecoId.trim(),
+              eco_id: ecoId.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9_-]/g, '')
+            }
+          }
         })
 
         if (authError) throw authError
 
         const user = authData.user
+        const session = authData.session
+
         if (user) {
+          // If session is null, email confirmation is active in Supabase
+          if (!session) {
+            throw new Error(
+              "Account registered! However, 'Confirm email' is enabled in your Supabase Auth settings. " +
+              "Since you are using a virtual Eco-ID email, you must disable 'Confirm email' under Authentication -> Providers -> Email in your Supabase Dashboard to log in, OR verify the email."
+            );
+          }
+
           // 2. Create profile in the public.profiles table
           const { error: profileError } = await supabase.from('profiles').insert([
             {
@@ -115,6 +131,13 @@ export default function AuthScreen({ onAuthSuccess }) {
 
           if (profileError) {
             console.error('Error inserting profile:', profileError)
+            if (profileError.message.includes('row-level security') || profileError.message.includes('violates row-level security')) {
+              throw new Error(
+                "Profile insertion failed due to Row-Level Security (RLS). " +
+                "Please ensure you ran the database schema setup in the Supabase SQL editor. " +
+                "If 'Confirm email' is enabled on your Supabase dashboard, you must disable it, or set up a trigger for profile creation."
+              );
+            }
             throw new Error(`Auth succeeded but profile creation failed: ${profileError.message}`)
           }
 

@@ -994,7 +994,27 @@ alter table journal_logs enable row level security;
 
 -- 4. Enable Policies
 create policy "Users own profile" on profiles for all using (auth.uid() = id);
-create policy "Users own logs" on journal_logs for all using (auth.uid() = user_id);`}
+create policy "Users own logs" on journal_logs for all using (auth.uid() = user_id);
+
+-- 5. Auto-Create Profiles Trigger (Recommended)
+-- Resolves RLS violations when email verification is enabled
+create or replace function public.handle_new_user()
+returns trigger as $$
+begin
+  insert into public.profiles (id, display_name, eco_id, badge_status)
+  values (
+    new.id,
+    coalesce(new.raw_user_meta_data->>'display_name', split_part(new.email, '@', 1)),
+    coalesce(new.raw_user_meta_data->>'eco_id', split_part(new.email, '@', 1)),
+    'Seedling'
+  );
+  return new;
+end;
+$$ language plpgsql security definer;
+
+create or replace trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();`}
                     </pre>
                   </div>
 
