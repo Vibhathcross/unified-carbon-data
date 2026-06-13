@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useMemo } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { supabase } from '../supabaseClient'
 import { analyzeJournalEntry, analyzeJournalEntryAsync } from '../utils/carbonAnalyzer'
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion'
@@ -309,28 +309,51 @@ export default function Dashboard({
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  // Load avatar on init
-  useEffect(() => {
-    const saved = localStorage.getItem(`aether_avatar_${user.id}`)
-    if (saved) {
-      setAvatarImg(saved)
-    }
-  }, [user.id])
+  // Avatar upload state
+  const [avatarUploading, setAvatarUploading] = useState(false)
 
-  const handleAvatarChange = (e) => {
+  // Avatar is loaded from profile.avatar_url when fetchData sets the profile
+  // (no localStorage needed — Supabase Storage is the source of truth)
+
+  const handleAvatarChange = async (e) => {
     const file = e.target.files[0]
-    if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        alert('Please choose an image under 2MB.')
-        return
-      }
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        const base64data = reader.result
-        setAvatarImg(base64data)
-        localStorage.setItem(`aether_avatar_${user.id}`, base64data)
-      }
-      reader.readAsDataURL(file)
+    if (!file) return
+    if (file.size > 2 * 1024 * 1024) {
+      alert('Please choose an image under 2MB.')
+      return
+    }
+
+    setAvatarUploading(true)
+    try {
+      // Upload to Supabase Storage: avatars/<user_id>/avatar.<ext>
+      const ext = file.name.split('.').pop() || 'jpg'
+      const path = `${user.id}/avatar.${ext}`
+
+      const { error: uploadErr } = await supabase.storage
+        .from('avatars')
+        .upload(path, file, { upsert: true, contentType: file.type })
+
+      if (uploadErr) throw uploadErr
+
+      // Get the public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(path)
+
+      // Cache-bust the URL so the browser re-fetches the new image
+      const urlWithBust = `${publicUrl}?t=${Date.now()}`
+      setAvatarImg(urlWithBust)
+
+      // Save avatar_url back to the profiles table
+      await supabase
+        .from('profiles')
+        .update({ avatar_url: publicUrl })
+        .eq('id', user.id)
+    } catch (err) {
+      console.error('Avatar upload failed:', err)
+      alert('Failed to upload avatar. Please try again.')
+    } finally {
+      setAvatarUploading(false)
     }
   }
 
@@ -871,6 +894,10 @@ export default function Dashboard({
       } else {
         setProfile(profileData)
         setDbConfigStatus('connected')
+        // Load avatar from Supabase Storage URL stored in profile
+        if (profileData.avatar_url) {
+          setAvatarImg(`${profileData.avatar_url}?t=${profileData.updated_at || Date.now()}`)
+        }
       }
 
       // Fetch logs
@@ -1414,9 +1441,10 @@ export default function Dashboard({
               <div className="absolute left-0 mt-3 w-80 bg-white/95 backdrop-blur-md border border-green-100/50 shadow-2xl rounded-3xl p-5 z-50 flex flex-col gap-5">
                 {/* Profile Info */}
                 <div className="flex items-center gap-4">
-                  <div 
-                    onClick={triggerFileInput}
-                    className="relative group cursor-pointer w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-green-100 shadow-inner flex items-center justify-center"
+
+                  <div
+                    onClick={avatarUploading ? null : triggerFileInput}
+                    className={`relative group cursor-pointer w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-green-100 shadow-inner flex items-center justify-center ${avatarUploading ? 'opacity-70 cursor-wait' : ''}`}
                     title="Click to change profile picture"
                   >
                     {avatarImg ? (
@@ -1426,10 +1454,16 @@ export default function Dashboard({
                         {profile?.display_name?.charAt(0).toUpperCase() || 'G'}
                       </div>
                     )}
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-[8px] font-bold text-white select-none">
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>EDIT</span>
-                    </div>
+                    {avatarUploading ? (
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                        <RefreshCw className="w-4 h-4 text-white animate-spin" />
+                      </div>
+                    ) : (
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-[8px] font-bold text-white select-none">
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>EDIT</span>
+                      </div>
+                    )}
                   </div>
                   
                   <input 
