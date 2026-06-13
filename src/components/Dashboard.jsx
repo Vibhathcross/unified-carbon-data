@@ -1150,7 +1150,7 @@ export default function Dashboard({
     if (hasQuestions) {
       setActiveConversation({
         originalText: journalText,
-        questions: [calculation.clarifying_questions.join('\n')],
+        questions: [],
         answers: [],
         turn: 1,
         currentQuestions: calculation.clarifying_questions,
