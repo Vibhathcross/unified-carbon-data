@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { supabase } from '../supabaseClient'
-import { analyzeJournalEntry, analyzeJournalEntryAsync } from '../utils/carbonAnalyzer'
+import { analyzeJournalEntry, analyzeJournalEntryAsync, defaultSettings, OLD_DEFAULT_SYSTEM_PROMPT } from '../utils/carbonAnalyzer'
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion'
 import { 
   LogOut, Plus, Trash2, History, BarChart3, User, Award, Download, Printer, X,
@@ -390,7 +390,11 @@ export default function Dashboard({
       let model = appSettings.llm_model || 'meta-llama/llama-3.3-70b-instruct'
       if (appSettings.llm_provider === 'local') model = 'meta-llama/llama-3.3-70b-instruct'
       setLlmModel(model)
-      setLlmSystemPrompt(appSettings.llm_system_prompt || '')
+      let sysPrompt = appSettings.llm_system_prompt || ''
+      if (!sysPrompt || sysPrompt.trim() === '' || sysPrompt === OLD_DEFAULT_SYSTEM_PROMPT) {
+        sysPrompt = defaultSettings.llm_system_prompt
+      }
+      setLlmSystemPrompt(sysPrompt)
 
       // Seed initial models list with current model
       const staticList = providerModels[provider] || []
@@ -2983,21 +2987,21 @@ export default function Dashboard({
                   {/* ── System Prompt override ── */}
                   <div className="space-y-1.5">
                     <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest font-mono">
-                      System Prompt
+                      System Prompt (instruction override)
                     </label>
                     <textarea
-                      placeholder="You are an expert environmental scientist and sustainability advisor. You analyze daily activity logs and produce detailed, insightful carbon footprint reports."
+                      placeholder="Enter custom LLM instructions..."
                       value={llmSystemPrompt}
                       onChange={(e) => setLlmSystemPrompt(e.target.value)}
-                      rows={4}
-                      className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono focus:outline-none focus:border-emerald-500 resize-y min-h-[80px]"
+                      rows={12}
+                      className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono focus:outline-none focus:border-emerald-500 resize-y min-h-[240px]"
                     />
                     <p className="text-[10px] text-slate-400 font-mono">
-                      Overrides default instruction prompt for carbon log analysis. Leave empty to use system default.
+                      Directly edit the instructions used by the system to analyze journal entries. Leave empty to revert to system default.
                     </p>
                   </div>
 
-                  {/* â”€â”€ Current config summary â”€â”€ */}
+                  {/* ── Current config summary ── */}
                   <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
                     <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest font-mono mb-2">Active Configuration</p>
                     <div className="space-y-1.5">
@@ -3012,13 +3016,13 @@ export default function Dashboard({
                       <div className="flex justify-between text-[11px]">
                         <span className="text-slate-500 font-mono">API Key</span>
                         <span className={`font-bold font-mono ${llmApiKey ? 'text-emerald-600' : 'text-rose-500'}`}>
-                          {llmApiKey ? `${llmApiKey.slice(0, 8)}â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢` : 'Not set'}
+                          {llmApiKey ? `${llmApiKey.slice(0, 8)}••••••••` : 'Not set'}
                         </span>
                       </div>
                       <div className="flex justify-between text-[11px]">
                         <span className="text-slate-500 font-mono">Sys Prompt</span>
-                        <span className={`font-bold font-mono text-right max-w-[55%] truncate ${llmSystemPrompt ? 'text-emerald-600' : 'text-slate-400'}`}>
-                          {llmSystemPrompt ? 'Custom prompt configured' : 'Default prompt'}
+                        <span className={`font-bold font-mono text-right max-w-[55%] truncate ${(llmSystemPrompt && llmSystemPrompt !== defaultSettings.llm_system_prompt) ? 'text-emerald-600' : 'text-slate-400'}`}>
+                          {(llmSystemPrompt && llmSystemPrompt !== defaultSettings.llm_system_prompt) ? 'Custom prompt configured' : 'Default prompt'}
                         </span>
                       </div>
                     </div>
