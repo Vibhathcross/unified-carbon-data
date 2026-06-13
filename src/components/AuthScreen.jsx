@@ -28,9 +28,13 @@ export default function AuthScreen({ onAuthSuccess, onAdminLogin }) {
     setError('')
   }
 
-  // Map Eco-ID to virtual email
+  // Map Eco-ID to virtual email, or use raw email directly if it contains an '@'
   const getVirtualEmail = (id) => {
-    const cleanId = id.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9_-]/g, '')
+    const trimmed = id.trim()
+    if (trimmed.includes('@')) {
+      return trimmed.toLowerCase()
+    }
+    const cleanId = trimmed.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9_-]/g, '')
     return `${cleanId}@gmail.com`
   }
 
