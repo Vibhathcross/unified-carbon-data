@@ -1792,10 +1792,10 @@ export default function Dashboard({
                             <div>
                               <span className="font-bold text-white block mb-0.5">Rank Brackets:</span>
                               <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 mt-0.5 text-[10px] font-mono">
-                                <span className="text-emerald-400">9.0+ : Eco Vanguard</span>
-                                <span className="text-teal-400">7.0+ : Earth Guardian</span>
-                                <span className="text-amber-400">4.0+ : Sustainability Seeker</span>
-                                <span className="text-rose-400">1.0+ : Carbon Beginner</span>
+                                <span className="text-teal-400">9.0+ : Eco Vanguard</span>
+                                <span className="text-emerald-400">7.0+ : Earth Guardian</span>
+                                <span className="text-sky-400">4.0+ : Sustainability Seeker</span>
+                                <span className="text-amber-400">1.0+ : Carbon Beginner</span>
                               </div>
                             </div>
                             <div>
@@ -2790,10 +2790,10 @@ export default function Dashboard({
                           <div>
                             <span className="font-bold text-white block mb-0.5">Rank Brackets:</span>
                             <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 mt-0.5 text-[10px] font-mono">
-                              <span className="text-emerald-400">9.0+ : Eco Vanguard</span>
-                              <span className="text-teal-400">7.0+ : Earth Guardian</span>
-                              <span className="text-amber-400">4.0+ : Sustainability Seeker</span>
-                              <span className="text-rose-400">1.0+ : Carbon Beginner</span>
+                              <span className="text-teal-400">9.0+ : Eco Vanguard</span>
+                              <span className="text-emerald-400">7.0+ : Earth Guardian</span>
+                              <span className="text-sky-400">4.0+ : Sustainability Seeker</span>
+                              <span className="text-amber-400">1.0+ : Carbon Beginner</span>
                             </div>
                           </div>
                           <div>
