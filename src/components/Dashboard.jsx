@@ -7,7 +7,7 @@ import {
   Sparkles, RefreshCw, Send, Calendar, ChevronRight, Info, 
   Settings, Database, Leaf, Car, Utensils, Zap, ShoppingBag, 
   Layers, Globe, CheckCircle2, ShieldAlert, Terminal, Flame, Trees,
-  XCircle, AlertTriangle
+  XCircle, AlertTriangle, Compass, BookOpen
 } from 'lucide-react'
 import { toPng } from 'html-to-image'
 
@@ -265,6 +265,7 @@ export default function Dashboard({
   const [showProfileTooltip, setShowProfileTooltip] = useState(false)
   const [showAnalyticsTooltip, setShowAnalyticsTooltip] = useState(false)
   const [showLogTooltip, setShowLogTooltip] = useState(false)
+  const [showGuideModal, setShowGuideModal] = useState(false)
 
   const [savingSettings, setSavingSettings] = useState(false)
   const [settingsStatus, setSettingsStatus] = useState('')
@@ -1419,6 +1420,187 @@ export default function Dashboard({
     <div 
       className="min-h-screen relative flex flex-col pb-20 md:pb-6 overflow-x-hidden"
     >
+      {/* Floating Guide Button */}
+      <button
+        onClick={() => setShowGuideModal(true)}
+        className="fixed top-6 left-6 z-[80] w-12 h-12 rounded-full glass-panel-interactive flex items-center justify-center border border-emerald-500/30 text-emerald-700 hover:text-emerald-800 shadow-lg cursor-pointer transition-all hover:scale-105 active:scale-95"
+        title="Open User Guide"
+      >
+        <BookOpen className="w-5 h-5 animate-pulse" />
+      </button>
+
+      {/* Complete User Guide Modal */}
+      <AnimatePresence>
+        {showGuideModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6 bg-slate-950/60 backdrop-blur-md">
+            <div className="absolute inset-0 cursor-pointer" onClick={() => setShowGuideModal(false)} />
+            
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 220 }}
+              className="relative max-w-4xl w-full bg-white/70 backdrop-blur-2xl rounded-3xl border border-white/50 shadow-2xl flex flex-col max-h-[88vh] z-10 overflow-hidden"
+            >
+              {/* Header */}
+              <div className="bg-gradient-to-r from-emerald-950 via-slate-900 to-emerald-950 px-6 py-5 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-emerald-500/20 rounded-xl border border-emerald-500/30">
+                    <Compass className="w-5 h-5 text-emerald-400" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-bold text-white tracking-tight">Aether Carbon Sync Matrix Guide</h2>
+                    <p className="text-[11px] text-emerald-400/80 font-mono mt-0.5">Explore features · Learn layout · Maximize efficiency</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowGuideModal(false)}
+                  className="p-2 hover:bg-white/10 rounded-xl text-slate-400 hover:text-white transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Scrollable Content */}
+              <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-8 font-sans">
+                
+                {/* Introduction */}
+                <div className="text-center max-w-2xl mx-auto space-y-2">
+                  <span className="text-[9px] font-bold text-emerald-600 bg-emerald-100/50 px-2.5 py-1 rounded-full uppercase tracking-wider font-mono">Platform Manual</span>
+                  <h3 className="text-xl font-bold text-slate-800">Welcome to Aether Carbon</h3>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    Aether Carbon is a decentralized matrix designed to log, compute, and synchronize ecological footprint metrics. It turns daily activity tracking into a gamified progression ledger backed by AI and real-time database synchronization.
+                  </p>
+                </div>
+
+                {/* Grid of Features */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  
+                  {/* Card 1: Daily Journaling */}
+                  <div className="glass-panel p-5 rounded-2xl border border-slate-100 flex flex-col gap-3">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-green-500/10 rounded-lg">
+                        <Database className="w-4 h-4 text-green-600" />
+                      </div>
+                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider font-mono">Daily Journal Console</h4>
+                    </div>
+                    <p className="text-[11.5px] text-slate-500 leading-relaxed">
+                      Describe your day in natural text. Mention commute details, dietary choices, and home utility consumption (like AC, laundry, recycling). 
+                    </p>
+                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-[10.5px] font-mono text-slate-500">
+                      <strong className="text-slate-700 block mb-0.5">Example Entry:</strong>
+                      "I rode my bicycle 5 km, ate a beef burger for lunch, and ran the AC at 24°C for 2 hours."
+                    </div>
+                  </div>
+
+                  {/* Card 2: Pledges */}
+                  <div className="glass-panel p-5 rounded-2xl border border-slate-100 flex flex-col gap-3">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-green-500/10 rounded-lg">
+                        <Leaf className="w-4 h-4 text-green-600" />
+                      </div>
+                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider font-mono">Sync Pledges</h4>
+                    </div>
+                    <p className="text-[11.5px] text-slate-500 leading-relaxed">
+                      Commit to active habit changes to reduce emissions. Activating a pledge offsets a fixed rate from your log calculations and contributes to your ranking score.
+                    </p>
+                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-[10.5px] font-mono text-slate-500">
+                      <strong className="text-slate-700 block mb-0.5">Habit Offsets:</strong>
+                      Pledges like <span className="text-green-700 font-bold">Cold Water Wash</span> or <span className="text-green-700 font-bold">Meatless Lunch</span> reduce calculations.
+                    </div>
+                  </div>
+
+                  {/* Card 3: Rank & Badges */}
+                  <div className="glass-panel p-5 rounded-2xl border border-slate-100 flex flex-col gap-3">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-green-500/10 rounded-lg">
+                        <Award className="w-4 h-4 text-green-600" />
+                      </div>
+                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider font-mono">Progression & Certificate</h4>
+                    </div>
+                    <p className="text-[11.5px] text-slate-500 leading-relaxed">
+                      Earn rank titles based on your 10-day efficiency averages. Unlock digital certificates of stewardship that can be generated and printed instantly.
+                    </p>
+                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-[10.5px] font-mono text-slate-500">
+                      <strong className="text-slate-700 block mb-0.5">Ranks:</strong>
+                      Carbon Beginner → Sustainability Seeker → Earth Guardian → Eco Vanguard.
+                    </div>
+                  </div>
+
+                  {/* Card 4: Admin Config */}
+                  <div className="glass-panel p-5 rounded-2xl border border-slate-100 flex flex-col gap-3">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-green-500/10 rounded-lg">
+                        <Settings className="w-4 h-4 text-green-600" />
+                      </div>
+                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider font-mono">Admin Config Panel</h4>
+                    </div>
+                    <p className="text-[11.5px] text-slate-500 leading-relaxed">
+                      Configure AI engine parameters. Switch LLM providers (Groq, OpenAI, Gemini, Claude, OpenRouter, Ollama), verify API keys, change model settings, and edit system prompt overrides.
+                    </p>
+                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-[10.5px] font-mono text-slate-500">
+                      <strong className="text-slate-700 block mb-0.5">System Prompt Override:</strong>
+                      Admins can directly edit the prompt used to analyze daily logs.
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* Additional controls and buttons guide */}
+                <div className="glass-panel p-6 rounded-2xl border border-slate-100 space-y-4">
+                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider font-mono flex items-center gap-2">
+                    <Terminal className="w-4 h-4 text-slate-600" />
+                    Controls & Buttons Guide
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                    <div className="space-y-3">
+                      <div className="flex gap-2">
+                        <strong className="text-slate-700 font-mono min-w-[100px] shrink-0">Submit Log:</strong>
+                        <span className="text-slate-500">Submits log text to the active LLM. Requires AI Parser activation.</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <strong className="text-slate-700 font-mono min-w-[100px] shrink-0">Delete (Trash):</strong>
+                        <span className="text-slate-500">Permanently deletes a journal entry from the Supabase history.</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <strong className="text-slate-700 font-mono min-w-[100px] shrink-0">Info Button (i):</strong>
+                        <span className="text-slate-500">Located at headings to display instant, touch-friendly parameter guidelines.</span>
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex gap-2">
+                        <strong className="text-slate-700 font-mono min-w-[100px] shrink-0">Export PDF:</strong>
+                        <span className="text-slate-500">Generates and downloads a clean certificate page for your active rank.</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <strong className="text-slate-700 font-mono min-w-[100px] shrink-0">Logout:</strong>
+                        <span className="text-slate-500">Ends your active user session and safely signs out of the Supabase node.</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <strong className="text-slate-700 font-mono min-w-[100px] shrink-0">Fetch Models:</strong>
+                        <span className="text-slate-500">Queries selected provider API to pull the latest models list dynamically.</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Footer */}
+              <div className="bg-slate-50 px-6 py-4 flex items-center justify-between shrink-0 border-t border-slate-100">
+                <span className="text-[10px] text-slate-400 font-mono">Aether Carbon Matrix v1.2.0</span>
+                <button
+                  onClick={() => setShowGuideModal(false)}
+                  className="px-4 py-2 bg-slate-800 text-white rounded-xl text-xs font-bold hover:bg-slate-700 transition-colors cursor-pointer"
+                >
+                  Close Guide
+                </button>
+              </div>
+
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
       {/* Background glow effects */}
       <div className="absolute top-0 right-1/4 w-[500px] h-[500px] glow-bg-green rounded-full pointer-events-none filter blur-3xl opacity-50" />
       <div className="absolute bottom-10 left-10 w-[400px] h-[400px] glow-bg-amber rounded-full pointer-events-none filter blur-3xl opacity-30" />
