@@ -1423,7 +1423,7 @@ export default function Dashboard({
       {/* Floating Guide Button */}
       <button
         onClick={() => setShowGuideModal(true)}
-        className="fixed top-6 left-6 z-[80] w-12 h-12 rounded-full glass-panel-interactive flex items-center justify-center border border-emerald-500/30 text-emerald-700 hover:text-emerald-800 shadow-lg cursor-pointer transition-all hover:scale-105 active:scale-95"
+        className="fixed top-24 left-6 z-[80] w-12 h-12 rounded-full glass-panel-interactive flex items-center justify-center border border-emerald-500/30 text-emerald-700 hover:text-emerald-800 shadow-lg cursor-pointer transition-all hover:scale-105 active:scale-95"
         title="Open User Guide"
       >
         <BookOpen className="w-5 h-5 animate-pulse" />
