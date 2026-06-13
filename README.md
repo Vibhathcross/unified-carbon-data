@@ -18,6 +18,8 @@ The interface is built to deliver a premium, high-fidelity experience:
 - **Cinematic Boot Screen Overlay**: A glowing green neon leaf icon pulses while terminal status messages load, creating a dramatic gateway sequence.
 - **Organic Green Smoke & Falling Leaves**: Shifting green smoke bubbles warped by an SVG fractal-noise displacement map float behind the UI, accompanied by 18 floating React-rendered falling leaves.
 - **High-Transparency Glassmorphism**: Cards feature high-transparency glass background panels, backdrop-blur overlays, and glowing green highlights.
+- **Top-Left Profile Dropdown Popover**: Replaced heavy sidebars with an interactive avatar-triggered popover menu showcasing rank, stats, avatar upload, and card claiming.
+- **Full-Width Feed**: Clean, expanded 12-column ledger feed optimized for high-readability typography.
 - **3D Card Layout & Scroll**: 8 beautiful carbon fact cards stacked in a scrollable tray. On desktop, they split side-by-side with interactive 3D hover effects.
 
 ---
@@ -29,6 +31,7 @@ The interface is built to deliver a premium, high-fidelity experience:
 - **Animations**: [Framer Motion](https://www.framer.com/motion/)
 - **Backend & Auth**: [Supabase](https://supabase.com/) (PostgreSQL & GoTrue Auth)
 - **Icons**: [Lucide React](https://lucide.dev/)
+- **Image Export**: [html-to-image](https://www.npmjs.com/package/html-to-image) (for generating downloadable Aether Cards)
 
 ---
 
@@ -36,20 +39,33 @@ The interface is built to deliver a premium, high-fidelity experience:
 
 ### 🔐 1. Custom Eco-ID Authentication
 - **Futuristic Login Screen**: Interactive registration and login portal.
-- **Eco-ID Generator**: Automatically generates usernames (e.g., `terra-guardian-402`) and maps them to standard email credentials behind the scenes.
+- **Eco-ID Generator**: Automatically generates usernames (e.g., `terra-guardian-402`) or accepts custom display names, mapping them to virtual cryptographic credentials.
 - **Sandbox Fallback Mode**: Works out-of-the-box using local storage fallback if Supabase is offline or environment variables are missing.
 
-### 📊 2. Carbon Sync Ledger & Terminal
-- **Dynamic Ledger Logging**: Log daily activities (e.g., diet, transport, electricity) via a natural language interface.
-- **AI Processing Loader**: Simulates a neural-vector parsing sequence.
-- **Metric Tracking**: Auto-calculates carbon score (CO₂ kg) and carbon efficiency rating using a custom natural language parser.
+### 🧠 2. Compassionate Client-Side LLM Analyzer
+- **Multimodal API Routing**: Configurable to fetch directly from OpenAI, Claude, Groq, OpenRouter, or a local Ollama server.
+- **Anti-CORS Development Proxies**: Features built-in Vite reverse-proxy routing for localhost dev testing against Groq, OpenAI, and Anthropic APIs.
+- **Compassionate & Scientific Voice**: Enforces a friendly, supportive tone in the LLM prompt. It avoids preachy lectures, respects user busy schedules, and guides them step-by-step.
+- **Rich Structured Output**: Returns precise footprint calculations, narratives, itemized emissions causes (custom labeled), actionable step-by-step suggestions, and supportive motivational blocks.
 
-### 📈 3. Metrics Panel & Analytics
-- **SVG Circular Gauges**: Interactive gauges showing total/average emissions and efficiency rating.
-- **Emissions Category Breakdown**: Responsive visual chart representing category distributions (Diet, Transportation, Utilities, Consumption).
-- **Badge Status History**: Users earn rank badges (`Seedling`, `Sprout`, `Sapling`, `Forest Guardian`) as they reduce carbon footprint.
+### 📊 3. 10-Day Rolling Progress Matrix
+- **Intraday Log Aggregation**: Groups and averages multiple logs submitted on the same calendar day.
+- **Sliding Active Window**: Tracks the 10 most recent active days to represent the user's progress.
+- **Rolling Mean Calculation**: Dynamically computes the average efficiency score of the 10 active days.
+- **Reactive Rank Synchronization**: User ranks are automatically updated in real-time as the 10-day rolling mean crosses threshold boundaries.
 
-### 📖 4. Interactive Carbon Facts
+### 🎖️ 4. Dynamic Sync Rank Badges
+- **Carbon Beginner** (Avg < 4.0): default amber rank with a Flame icon.
+- **Sustainability Seeker** (Avg >= 4.0): blue rank with a Globe icon.
+- **Earth Guardian** (Avg >= 7.0): green rank with a Trees icon.
+- **Eco Vanguard** (Avg >= 9.0): teal metallic rank with an Award icon.
+
+### 🖼️ 5. Personalized Aether Cards
+- **Dynamic Themes**: Border styling, custom appreciate-texts, metallic ribbons, and background gradients automatically adapt to the user's current rank.
+- **Local Avatar Upload**: Supports persistent Base64 avatar upload from the profile dropdown menu, displaying the user photo centered inside a rank-colored glow ring on the Aether Card.
+- **Unified PNG Exports**: Uses `html-to-image` at a fixed layout dimension of `800px` by `566px`, ensuring absolute mathematical centering of the badge seal and ribbon on all screen resolutions.
+
+### 📖 6. Interactive Carbon Facts
 A collection of 8 detailed ecological fact cards representing core climate components:
 - 🌲 **Forest Sequestration**
 - 🚄 **Transit Coefficients**
@@ -124,7 +140,7 @@ create table profiles (
   id uuid references auth.users on delete cascade primary key,
   display_name text not null,
   eco_id text unique not null,
-  badge_status text default 'Seedling', -- 'Seedling', 'Sprout', 'Sapling', 'Forest Guardian'
+  badge_status text default 'Carbon Beginner', -- 'Carbon Beginner', 'Sustainability Seeker', 'Earth Guardian', 'Eco Vanguard'
   created_at timestamp with time zone default now() not null
 );
 
@@ -158,7 +174,7 @@ begin
     new.id,
     coalesce(new.raw_user_meta_data->>'display_name', split_part(new.email, '@', 1)),
     coalesce(new.raw_user_meta_data->>'eco_id', split_part(new.email, '@', 1)),
-    'Seedling'
+    'Carbon Beginner'
   );
   return new;
 end;

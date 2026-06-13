@@ -1,27 +1,14 @@
-// Hybrid Carbon Footprint Analyzer (Client-side regex fallback & LLM APIs)
+// Aether Carbon Analyzer — Pure AI Analysis Engine
 
-// Standard default multipliers (matching the local rules)
 export const defaultSettings = {
-  llm_provider: 'local',
+  llm_provider: 'openrouter',
   llm_api_key: '',
   llm_base_url: '',
-  llm_model: 'llama-3.1-8b-instant',
-  llm_system_prompt: 'You are an environmental science AI model that estimates carbon footprint details based on daily activity descriptions. Calculate the footprint in kg of CO2 equivalent, provide an efficiency score from 0 to 100, select the primary category (transportation, diet, utilities, consumption, mixed), and provide 1 to 3 suggestions.',
-  multiplier_car: 8.5,
-  multiplier_bus_train: 1.8,
-  multiplier_flight: 120.0,
-  multiplier_beef: 7.2,
-  multiplier_chicken: 2.4,
-  multiplier_vegetarian: 0.6,
-  multiplier_dairy: 1.9,
-  multiplier_ac: 4.5,
-  multiplier_led: 0.3,
-  multiplier_laundry: 1.5,
-  multiplier_shopping: 9.0,
-  multiplier_recycle: -1.2
+  llm_model: 'nvidia/nemotron-3-nano-30b-a3b:free',
+  llm_system_prompt: 'You are an expert environmental scientist and sustainability advisor. You analyze daily activity logs and produce detailed, insightful carbon footprint reports.'
 };
 
-// 1. Synchronous local analyzer using custom settings multipliers
+// Synchronous local fallback (minimal, only used as emergency backup)
 export function analyzeJournalEntry(text, settings = defaultSettings) {
   const normalized = text.toLowerCase();
   let calculated_kg = 0;
@@ -130,9 +117,9 @@ export function analyzeJournalEntry(text, settings = defaultSettings) {
     suggestions.push("Keep logging your daily activities to gain deep insight into your carbon footprint.");
   }
 
-  // Calculate efficiency score (higher is better, out of 100)
-  let efficiency_score = Math.max(10, 100 - (calculated_kg * 5));
-  if (calculated_kg <= 1.0) efficiency_score = 98;
+  // Calculate efficiency score (higher is better, out of 10)
+  let efficiency_score = Math.max(1.0, 10.0 - (calculated_kg * 0.5));
+  if (calculated_kg <= 1.0) efficiency_score = 9.8;
   efficiency_score = parseFloat(efficiency_score.toFixed(1));
 
   // Determine category
@@ -150,29 +137,64 @@ export function analyzeJournalEntry(text, settings = defaultSettings) {
   };
 }
 
-// 2. Asynchronous hybrid analyzer (Calls Groq/OpenAI/Ollama/Gemini/OpenRouter/Claude if configured, otherwise falls back to local)
+// Pure AI Analyzer — all analysis is done by the LLM, no local regex fallback
 export async function analyzeJournalEntryAsync(text, settings = defaultSettings) {
   const conf = { ...defaultSettings, ...settings };
 
   // Ollama does not require an API key to run locally, others do
   const needsApiKey = ['groq', 'openai', 'gemini', 'openrouter', 'claude'].includes(conf.llm_provider);
-  if (conf.llm_provider === 'local' || (needsApiKey && !conf.llm_api_key)) {
-    // Return synchronous regex output
-    return analyzeJournalEntry(text, conf);
+  if (needsApiKey && !conf.llm_api_key) {
+    throw new Error(`API Key for ${conf.llm_provider.toUpperCase()} is not configured. Please open Settings and enter your API Key.`);
   }
 
-  const userPrompt = `Analyze the following daily activity log:
+  const isDev = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+  const userPrompt = `You are a compassionate sustainability scientist and a calm, understanding life coach. Analyze the following daily activity log and produce a deeply personal, warm, and insightful carbon footprint report.
+
+CRITICAL TONE RULES (follow these strictly):
+- NEVER be preachy, guilt-tripping, or overwhelmingly idealistic.
+- Respect that people have busy lives, budget limits, habits, and comfort zones.
+- Steps must feel EASY and REALISTIC. Think "start small, build momentum."
+- Acknowledge what the person already did well, even in a high-emission day.
+- Steps should feel like advice from a friend, not a lecture from a scientist.
+- Use simple, everyday language — no jargon.
+
+Activity log:
 "${text}"
 
-Respond with a raw JSON object containing these exact fields:
+Respond ONLY with a raw JSON object (no markdown, no code fences) with EXACTLY these fields:
+
 {
-  "calculated_kg": <estimated_kg_CO2_number>,
-  "efficiency_score": <score_0_to_100_based_on_eco_friendliness>,
-  "category": "transportation" | "diet" | "utilities" | "consumption" | "mixed",
-  "suggestions": [<1_to_3_actionable_eco_suggestions_strings>]
+  "calculated_kg": <total estimated kg CO2 equivalent as a precise number>,
+  "efficiency_score": <eco-friendliness score between 1.0 and 10.0, higher means greener>,
+
+  "narrative": "<Write 3-4 sentences of warm, specific analysis. Name each activity that contributed to emissions and explain in simple everyday language WHY it has the impact it does. Be scientifically accurate but speak like a knowledgeable friend. Acknowledge any positive choices made today too.>",
+
+  "causes": [
+    {
+      "activity": "<The exact human-readable name of the activity as described — e.g. 'Driving 25 km by petrol car', 'Beef burger at lunch', 'AC running all day at 18°C'>",
+      "label": "<A short descriptive phrase the AI freely defines to group this cause — e.g. 'Fossil fuel transport', 'High-impact meat', 'Heavy home cooling'. Do NOT use fixed categories. Be creative and specific.>",
+      "kg": <estimated kg CO2 as a number>,
+      "impact": "high" | "medium" | "low"
+    }
+  ],
+
+  "suggestions": [
+    {
+      "title": "<Short, positive, action-oriented title — not scary>",
+      "detail": "<1-2 sentences explaining the benefit in a relatable way, e.g. 'This one swap could cut your weekly footprint by 30% — and you might even enjoy it.'>",
+      "steps": [
+        "<Step 1: The tiniest possible first action — something doable today with zero effort or cost>",
+        "<Step 2: A slightly bigger habit to build over this week — realistic for a busy person>",
+        "<Step 3: The long-term upgrade if they want to go further — optional, never pressuring>"
+      ]
+    }
+  ],
+
+  "motivation": "<Write a beautiful, uplifting 2-3 sentence message directly to this person. Start by genuinely acknowledging that living sustainably is hard and life is busy. Then paint a vivid, hopeful picture of what even one small daily change multiplied across millions of people can do for the Earth. Close with a line that makes them feel capable and supported — like they have a quiet champion in their corner.>"
 }
 
-Return ONLY raw JSON. Do not include markdown \`\`\`json block wrapper or additional text.`;
+Return ONLY raw JSON. No text outside the JSON object.`;
 
   try {
     let url = '';
@@ -180,7 +202,7 @@ Return ONLY raw JSON. Do not include markdown \`\`\`json block wrapper or additi
     let bodyData = {};
 
     if (conf.llm_provider === 'groq') {
-      url = conf.llm_base_url || 'https://api.groq.com/openai/v1/chat/completions';
+      url = conf.llm_base_url || (isDev ? '/api-proxy/groq/openai/v1/chat/completions' : 'https://api.groq.com/openai/v1/chat/completions');
       headers['Authorization'] = `Bearer ${conf.llm_api_key}`;
       bodyData = {
         model: conf.llm_model || 'llama-3.1-8b-instant',
@@ -192,7 +214,7 @@ Return ONLY raw JSON. Do not include markdown \`\`\`json block wrapper or additi
         response_format: { type: 'json_object' }
       };
     } else if (conf.llm_provider === 'openai') {
-      url = conf.llm_base_url || 'https://api.openai.com/v1/chat/completions';
+      url = conf.llm_base_url || (isDev ? '/api-proxy/openai/v1/chat/completions' : 'https://api.openai.com/v1/chat/completions');
       headers['Authorization'] = `Bearer ${conf.llm_api_key}`;
       bodyData = {
         model: conf.llm_model || 'gpt-4o-mini',
@@ -218,7 +240,7 @@ Return ONLY raw JSON. Do not include markdown \`\`\`json block wrapper or additi
         response_format: { type: 'json_object' }
       };
     } else if (conf.llm_provider === 'claude') {
-      url = conf.llm_base_url || 'https://api.anthropic.com/v1/messages';
+      url = conf.llm_base_url || (isDev ? '/api-proxy/anthropic/v1/messages' : 'https://api.anthropic.com/v1/messages');
       headers['x-api-key'] = conf.llm_api_key;
       headers['anthropic-version'] = '2023-06-01';
       headers['dangerouslyAllowBrowser'] = 'true';
@@ -308,17 +330,32 @@ Return ONLY raw JSON. Do not include markdown \`\`\`json block wrapper or additi
     // Validate fields with strict sanitisation
     return {
       calculated_kg: parseFloat(getFloat(parsed.calculated_kg, 3.5).toFixed(2)),
-      efficiency_score: parseFloat(Math.min(100, Math.max(0, getFloat(parsed.efficiency_score, 50))).toFixed(1)),
-      category: ['transportation', 'diet', 'utilities', 'consumption', 'mixed'].includes(parsed.category) 
-        ? parsed.category 
-        : 'mixed',
-      suggestions: Array.isArray(parsed.suggestions) 
-        ? parsed.suggestions.slice(0, 3).map(s => String(s).trim()) 
-        : ['Review carbon footprint impacts.']
+      efficiency_score: parseFloat(Math.min(10, Math.max(1, getFloat(parsed.efficiency_score, 5.0))).toFixed(1)),
+      narrative: typeof parsed.narrative === 'string' ? parsed.narrative.trim() : '',
+      causes: Array.isArray(parsed.causes)
+        ? parsed.causes.slice(0, 8).map(c => ({
+            activity: String(c.activity || '').trim(),
+            label: String(c.label || '').trim(),
+            kg: parseFloat(getFloat(c.kg, 0).toFixed(2)),
+            impact: ['high', 'medium', 'low'].includes(c.impact) ? c.impact : 'medium'
+          }))
+        : [],
+      suggestions: Array.isArray(parsed.suggestions)
+        ? parsed.suggestions.slice(0, 3).map(s => {
+            if (typeof s === 'string') return { title: s, detail: '', steps: [] };
+            return {
+              title: String(s.title || '').trim(),
+              detail: String(s.detail || '').trim(),
+              steps: Array.isArray(s.steps) ? s.steps.slice(0, 3).map(st => String(st).trim()) : []
+            };
+          })
+        : [{ title: 'Review your daily habits', detail: 'Small changes add up over time.', steps: [] }],
+      motivation: typeof parsed.motivation === 'string'
+        ? parsed.motivation.trim()
+        : (typeof parsed.eco_advice === 'string' ? parsed.eco_advice.trim() : '')
     };
   } catch (err) {
-    console.error('LLM analysis error, falling back to local rules:', err);
-    // Fall back to local regex analyzer if API call fails
-    return analyzeJournalEntry(text, conf);
+    console.error('LLM analysis error:', err);
+    throw err;
   }
 }

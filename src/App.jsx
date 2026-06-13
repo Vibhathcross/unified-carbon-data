@@ -47,26 +47,89 @@ export default function App() {
 
   const loadAppSettings = async () => {
     try {
+      // 1. Always prefer localStorage first — it's written immediately on save
+      const localRaw = localStorage.getItem('aether_app_settings')
+      if (localRaw) {
+        const localParsed = JSON.parse(localRaw)
+        setAppSettings(localParsed)
+        return
+      }
+      // 2. Only fall back to Supabase if localStorage is empty (first run)
       const { data, error } = await supabase
         .from('app_settings')
         .select('*')
         .eq('id', 'global')
         .single()
-      
       if (!error && data) {
         setAppSettings(data)
-      } else {
-        const localSettings = localStorage.getItem('aether_app_settings')
-        if (localSettings) {
-          setAppSettings(JSON.parse(localSettings))
-        }
+        // Cache it so future loads use localStorage
+        localStorage.setItem('aether_app_settings', JSON.stringify(data))
       }
     } catch (err) {
       console.error('Error loading app settings:', err)
-      const localSettings = localStorage.getItem('aether_app_settings')
-      if (localSettings) {
-        setAppSettings(JSON.parse(localSettings))
+    }
+  }
+
+  // Called by Dashboard when settings are saved — applies immediately without re-fetch
+  const handleSettingsApplied = (newSettings) => {
+    setAppSettings(newSettings)
+  }
+
+  // Attempt admin login by reading the public/admin_config.json on this device
+  const handleAdminLogin = async () => {
+    try {
+      const res = await fetch('/admin_config.json')
+      if (!res.ok) throw new Error('admin_config.json not found on this device.')
+      
+      const data = await res.json()
+      if (!data.admin) throw new Error('This device is not configured as an admin device.')
+      if (!data.email || !data.password) {
+        throw new Error('Admin credentials (email/password) are missing in admin_config.json.')
       }
+
+      setAdminConfig(data)
+
+      // Try signing in
+      let authData
+      try {
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email: data.email,
+          password: data.password
+        })
+        if (signInError) throw signInError
+        authData = signInData
+      } catch (signInError) {
+        // Fallback auto signup if it's the first time
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email: data.email,
+          password: data.password,
+          options: {
+            data: {
+              display_name: data.name || 'Vibhath T K',
+              eco_id: 'vibhath-admin'
+            }
+          }
+        })
+        if (signUpError) {
+          throw new Error(`Admin login failed: ${signInError.message}. Automatic signup also failed: ${signUpError.message}`)
+        }
+        authData = signUpData
+      }
+
+      const user = authData.user || authData.session?.user
+      if (!user) throw new Error('Authentication succeeded but no user session was returned.')
+
+      const adminUser = {
+        ...user,
+        display_name: data.name || user.user_metadata?.display_name || 'Vibhath T K',
+        isAdmin: true
+      }
+      setSession({ user: adminUser })
+      sessionStorage.removeItem('admin_logged_out')
+      return true
+    } catch (err) {
+      console.error('Admin login error:', err)
+      throw err
     }
   }
 
@@ -75,52 +138,110 @@ export default function App() {
     // 1. Load global settings
     loadAppSettings()
 
-    // 2. Resolve authentication session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        setSession(session)
-        setAuthLoading(false)
-      } else {
-        // If not authenticated, check if we are on an admin device to auto-login
-        const loggedOut = sessionStorage.getItem('admin_logged_out')
-        if (!loggedOut) {
-          fetch('/admin_config.json')
-            .then(res => {
-              if (res.ok) return res.json()
-              throw new Error('Not admin device')
-            })
-            .then(data => {
-              if (data.admin) {
-                setAdminConfig(data)
+    // 2. Fetch admin_config.json if it exists on this device
+    fetch('/admin_config.json')
+      .then(res => {
+        if (res.ok) return res.json()
+        return null
+      })
+      .then(async (adminData) => {
+        if (adminData && adminData.admin) {
+          setAdminConfig(adminData)
+          
+          // Check if we already have an active session
+          const { data: { session: currentSession } } = await supabase.auth.getSession()
+          
+          if (currentSession && currentSession.user) {
+            // Check if current session user email matches the admin config email
+            if (currentSession.user.email === adminData.email) {
+              const adminUser = {
+                ...currentSession.user,
+                display_name: adminData.name || currentSession.user.user_metadata?.display_name || 'Vibhath T K',
+                isAdmin: true
+              }
+              setSession({ ...currentSession, user: adminUser })
+              setAuthLoading(false)
+              return
+            }
+          }
+          
+          // No active session or session doesn't match the admin email — auto-login!
+          const loggedOut = sessionStorage.getItem('admin_logged_out')
+          if (!loggedOut && adminData.email && adminData.password) {
+            try {
+              let authData
+              try {
+                const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+                  email: adminData.email,
+                  password: adminData.password
+                })
+                if (signInError) throw signInError
+                authData = signInData
+              } catch (signInError) {
+                // Try automatic signup fallback
+                const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+                  email: adminData.email,
+                  password: adminData.password,
+                  options: {
+                    data: {
+                      display_name: adminData.name || 'Vibhath T K',
+                      eco_id: 'vibhath-admin'
+                    }
+                  }
+                })
+                if (signUpError) throw signUpError
+                authData = signUpData
+              }
+              
+              const user = authData.user || authData.session?.user
+              if (user) {
                 const adminUser = {
-                  id: 'admin-device-id',
-                  email: 'admin@aether-carbon.com',
-                  display_name: data.name || 'Vibhath T K (Admin)',
+                  ...user,
+                  display_name: adminData.name || user.user_metadata?.display_name || 'Vibhath T K',
                   isAdmin: true
                 }
                 setSession({ user: adminUser })
               }
-              setAuthLoading(false)
-            })
-            .catch(() => {
-              setAuthLoading(false)
-            })
+            } catch (err) {
+              console.error('Admin auto-login failed:', err)
+            }
+          }
         } else {
-          setAuthLoading(false)
+          // Normal user path (no admin config on this device)
+          const { data: { session } } = await supabase.auth.getSession()
+          if (session) {
+            setSession(session)
+          }
         }
-      }
-    })
+        setAuthLoading(false)
+      })
+      .catch(() => {
+        // Fallback normal user path if fetching fails
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (session) setSession(session)
+          setAuthLoading(false)
+        })
+      })
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
+      if (session && session.user) {
+        // Check if this user is admin (matches adminConfig or hardcoded admin email)
+        const isUserAdmin = (adminConfig && session.user.email === adminConfig.email) || session.user.email === 'vibhath.admin@aether-carbon.com'
+        const modifiedUser = {
+          ...session.user,
+          isAdmin: isUserAdmin,
+          display_name: isUserAdmin ? (adminConfig?.name || 'Vibhath T K') : (session.user.user_metadata?.display_name || session.user.email?.split('@')[0])
+        }
+        setSession({ ...session, user: modifiedUser })
+      } else {
         setSession(session)
       }
       setAuthLoading(false)
     })
 
     return () => subscription.unsubscribe()
-  }, [])
+  }, [adminConfig?.email])
 
   const handleLogout = async () => {
     try {
@@ -234,7 +355,7 @@ export default function App() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <AuthScreen onAuthSuccess={(user) => setSession({ user })} />
+            <AuthScreen onAuthSuccess={(user) => setSession({ user })} onAdminLogin={handleAdminLogin} />
           </motion.div>
         ) : (
           /* Dashboard */
@@ -250,6 +371,7 @@ export default function App() {
               adminConfig={adminConfig}
               appSettings={appSettings}
               onSettingsUpdate={loadAppSettings}
+              onSettingsApplied={handleSettingsApplied}
             />
           </motion.div>
         )}

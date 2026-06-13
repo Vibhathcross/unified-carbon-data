@@ -26,3 +26,7 @@ public/admin_config.json
 *.njsproj
 *.sln
 *.sw?
+
+# Local test scripts (with credentials)
+test_*.mjs
+test_*.js

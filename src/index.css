@@ -264,3 +264,94 @@ body {
     transform: translateX(0) rotate(calc(var(--init-rot) + 360deg));
   }
 }
+
+/* Metallic Badge Styles */
+@keyframes metallic-shine {
+  0% {
+    left: -150%;
+  }
+  50% {
+    left: 150%;
+  }
+  100% {
+    left: 150%;
+  }
+}
+
+.metallic-badge {
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 6px 20px -5px rgba(0, 0, 0, 0.15), inset 0 1px 2px rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.metallic-badge::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -150%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.2) 20%,
+    rgba(255, 255, 255, 0.6) 50%,
+    rgba(255, 255, 255, 0.2) 80%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  transform: skewX(-25deg);
+  animation: metallic-shine 5s infinite ease-in-out;
+  pointer-events: none;
+}
+
+.badge-seedling {
+  background: linear-gradient(135deg, #a87c53 0%, #e6ccb2 25%, #d8b48f 45%, #8c5d33 75%, #b88f68 100%);
+  text-shadow: 0 0.5px 1px rgba(255, 255, 255, 0.5);
+}
+
+.badge-sprout {
+  background: linear-gradient(135deg, #94a3b8 0%, #f1f5f9 25%, #cbd5e1 45%, #64748b 75%, #e2e8f0 100%);
+  text-shadow: 0 0.5px 1px rgba(255, 255, 255, 0.5);
+}
+
+.badge-sapling {
+  background: linear-gradient(135deg, #d97706 0%, #fef9c3 25%, #fde047 45%, #b45309 75%, #facc15 100%);
+  text-shadow: 0 0.5px 1px rgba(255, 255, 255, 0.5);
+}
+
+.badge-forest-guardian {
+  background: linear-gradient(135deg, #047857 0%, #a7f3d0 25%, #34d399 45%, #064e3b 75%, #10b981 100%);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.badge-eco-vanguard {
+  background: linear-gradient(135deg, #0f766e 0%, #ccfbf1 25%, #2dd4bf 45%, #115e59 75%, #14b8a6 100%);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.badge-earth-guardian {
+  background: linear-gradient(135deg, #15803d 0%, #dcfce7 25%, #4ade80 45%, #166534 75%, #22c55e 100%);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.badge-sustainability-seeker {
+  background: linear-gradient(135deg, #1d4ed8 0%, #dbeafe 25%, #60a5fa 45%, #1e40af 75%, #3b82f6 100%);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.badge-carbon-beginner {
+  background: linear-gradient(135deg, #b45309 0%, #fef3c7 25%, #fbbf24 45%, #92400e 75%, #f59e0b 100%);
+  text-shadow: 0 0.5px 1px rgba(255, 255, 255, 0.5);
+}
+
+@keyframes spin-slow {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 35s linear infinite;
+}
+

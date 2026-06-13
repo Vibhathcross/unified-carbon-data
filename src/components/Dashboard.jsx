@@ -1,13 +1,15 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { supabase } from '../supabaseClient'
 import { analyzeJournalEntry, analyzeJournalEntryAsync } from '../utils/carbonAnalyzer'
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion'
 import { 
-  LogOut, Plus, Trash2, History, BarChart3, User, Award, 
+  LogOut, Plus, Trash2, History, BarChart3, User, Award, Download, Printer, X,
   Sparkles, RefreshCw, Send, Calendar, ChevronRight, Info, 
   Settings, Database, Leaf, Car, Utensils, Zap, ShoppingBag, 
   Layers, Globe, CheckCircle2, ShieldAlert, Terminal, Flame, Trees
 } from 'lucide-react'
+import { toPng } from 'html-to-image'
+
 
 // Popular models catalog for each supported LLM provider
 const providerModels = {
@@ -173,12 +175,60 @@ function TiltCard({ children, className = '' }) {
   )
 }
 
+const getThemeProps = (score) => {
+  const normScore = score <= 10 ? score * 10 : score;
+  if (normScore >= 80) {
+    return {
+      accent: 'emerald',
+      label: '🌿 Pristine Leaf',
+      bgGrad: 'from-emerald-500/[0.04] to-emerald-500/[0.01]',
+      border: 'border-emerald-500/20 hover:border-emerald-500/40',
+      text: 'text-emerald-700',
+      badge: 'bg-emerald-50 text-emerald-700 border-emerald-200/50',
+      glow: 'shadow-emerald-500/5',
+      glowColor: 'bg-emerald-500',
+      barColor: 'bg-emerald-500',
+      motivationBg: 'from-slate-800 to-emerald-950',
+      accentLight: '#10b981'
+    }
+  } else if (score >= 50) {
+    return {
+      accent: 'amber',
+      label: '⚡ Moderate Impact',
+      bgGrad: 'from-amber-500/[0.04] to-amber-500/[0.01]',
+      border: 'border-amber-500/20 hover:border-amber-500/40',
+      text: 'text-amber-700',
+      badge: 'bg-amber-50 text-amber-700 border-amber-200/50',
+      glow: 'shadow-amber-500/5',
+      glowColor: 'bg-amber-500',
+      barColor: 'bg-amber-500',
+      motivationBg: 'from-slate-800 to-amber-950',
+      accentLight: '#f59e0b'
+    }
+  } else {
+    return {
+      accent: 'rose',
+      label: '🔥 Carbon Alert',
+      bgGrad: 'from-rose-500/[0.04] to-rose-500/[0.01]',
+      border: 'border-rose-500/20 hover:border-rose-500/40',
+      text: 'text-rose-700',
+      badge: 'bg-rose-50 text-rose-700 border-rose-200/50',
+      glow: 'shadow-rose-500/5',
+      glowColor: 'bg-rose-500',
+      barColor: 'bg-rose-500',
+      motivationBg: 'from-slate-800 to-rose-950',
+      accentLight: '#f43f5e'
+    }
+  }
+}
+
 export default function Dashboard({ 
   user, 
   onLogout, 
   adminConfig = null, 
   appSettings = null, 
-  onSettingsUpdate = null 
+  onSettingsUpdate = null,
+  onSettingsApplied = null
 }) {
   // UI Tabs for Mobile layout
   const [activeTab, setActiveTab] = useState('feed') // 'feed', 'new-entry', 'analytics', 'settings'
@@ -196,12 +246,17 @@ export default function Dashboard({
   const [currentStepIndex, setCurrentStepIndex] = useState(-1)
   
   // Settings view toggles
-  const [showDevSettings, setShowDevSettings] = useState(false)
   const [dbConfigStatus, setDbConfigStatus] = useState('unknown') // 'connected', 'fallback', 'missing_tables', 'sandbox'
 
   // Admin Config Panel States
   const [showAdminPanel, setShowAdminPanel] = useState(false)
-  const [llmProvider, setLlmProvider] = useState('local')
+  const [showCertificate, setShowCertificate] = useState(false)
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false)
+  const profileDropdownRef = useRef(null)
+  const [avatarImg, setAvatarImg] = useState('')
+  const [modelsError, setModelsError] = useState('')
+  const [submitError, setSubmitError] = useState('')
+  const [llmProvider, setLlmProvider] = useState('openrouter')
   const [llmApiKey, setLlmApiKey] = useState('')
   const [llmBaseUrl, setLlmBaseUrl] = useState('')
   const [llmModel, setLlmModel] = useState('llama-3.1-8b-instant')
@@ -211,15 +266,99 @@ export default function Dashboard({
   const [settingsStatus, setSettingsStatus] = useState('')
   const [dynamicModels, setDynamicModels] = useState([])
   const [loadingModels, setLoadingModels] = useState(false)
+  const [showApiKey, setShowApiKey] = useState(false)
+  const [testingKey, setTestingKey] = useState(false)
+  const [keyTestResult, setKeyTestResult] = useState(null) // null | 'ok' | 'fail'
+
+  // Pledges state & persistence
+  const [pledges, setPledges] = useState({})
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(`aether_pledges_${user.id}`)
+      if (stored) {
+        setPledges(JSON.parse(stored))
+      } else {
+        setPledges({})
+      }
+    } catch (e) {
+      console.error('Failed to load pledges', e)
+    }
+  }, [user.id])
+
+  const handlePledgeToggle = (logId, suggestionIdx) => {
+    const key = `${logId}-${suggestionIdx}`
+    setPledges(prev => {
+      const updated = { ...prev, [key]: !prev[key] }
+      if (!updated[key]) {
+        delete updated[key]
+      }
+      localStorage.setItem(`aether_pledges_${user.id}`, JSON.stringify(updated))
+      return updated
+    })
+  }
+
+  // Profile dropdown click outside handler
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target)) {
+        setShowProfileDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // Load avatar on init
+  useEffect(() => {
+    const saved = localStorage.getItem(`aether_avatar_${user.id}`)
+    if (saved) {
+      setAvatarImg(saved)
+    }
+  }, [user.id])
+
+  const handleAvatarChange = (e) => {
+    const file = e.target.files[0]
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        alert('Please choose an image under 2MB.')
+        return
+      }
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        const base64data = reader.result
+        setAvatarImg(base64data)
+        localStorage.setItem(`aether_avatar_${user.id}`, base64data)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const triggerFileInput = () => {
+    const input = document.getElementById('avatar-file-input')
+    if (input) input.click()
+  }
+
+  // Collapsible breakdowns state
+  const [expandedBreakdowns, setExpandedBreakdowns] = useState({})
+  
+  const toggleBreakdown = (logId) => {
+    setExpandedBreakdowns(prev => ({
+      ...prev,
+      [logId]: !prev[logId]
+    }))
+  }
 
   // Sync state values with global config props
   useEffect(() => {
     if (appSettings) {
-      const provider = appSettings.llm_provider || 'local'
+      let provider = appSettings.llm_provider || 'openrouter'
+      if (provider === 'local') provider = 'openrouter'
       setLlmProvider(provider)
       setLlmApiKey(appSettings.llm_api_key || '')
       setLlmBaseUrl(appSettings.llm_base_url || '')
-      const model = appSettings.llm_model || 'llama-3.1-8b-instant'
+      let model = appSettings.llm_model || 'meta-llama/llama-3.3-70b-instruct'
+      if (appSettings.llm_provider === 'local') model = 'meta-llama/llama-3.3-70b-instruct'
       setLlmModel(model)
       setLlmSystemPrompt(appSettings.llm_system_prompt || '')
 
@@ -253,34 +392,41 @@ export default function Dashboard({
       updated_at: new Date().toISOString()
     }
 
+    // 1. Write to localStorage FIRST — this is the source of truth
+    localStorage.setItem('aether_app_settings', JSON.stringify(updated))
+
+    // 2. Push new settings to App state immediately (no Supabase re-fetch)
+    if (onSettingsApplied) onSettingsApplied(updated)
+
+    // 3. Try to persist to Supabase in background (non-blocking)
     try {
       const { error } = await supabase
         .from('app_settings')
         .upsert([updated])
-      
-      if (error) throw error
-
-      setSettingsStatus('Global settings applied!')
-      localStorage.setItem('aether_app_settings', JSON.stringify(updated))
-      if (onSettingsUpdate) onSettingsUpdate()
+      if (error) {
+        console.warn('Supabase settings upsert failed (saved locally):', error)
+        setSettingsStatus('✓ Applied locally')
+      } else {
+        setSettingsStatus('✓ Settings saved & applied!')
+      }
     } catch (err) {
-      console.warn('Supabase settings table write failed, saving to localStorage:', err)
-      localStorage.setItem('aether_app_settings', JSON.stringify(updated))
-      setSettingsStatus('Applied locally (local storage).')
-      if (onSettingsUpdate) onSettingsUpdate()
+      console.warn('Supabase unreachable, settings saved locally:', err)
+      setSettingsStatus('✓ Applied locally')
     } finally {
       setSavingSettings(false)
       setTimeout(() => setSettingsStatus(''), 3000)
     }
   }
-  // Fetch models dynamically from selected provider API
+  // Fetch models dynamically from selected provider API (with proxy fallback to bypass browser CORS)
   const fetchProviderModels = async (provider, apiKey, baseUrl) => {
     if (provider === 'local') {
       setDynamicModels([])
       return
     }
     
+    const isDev = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
     setLoadingModels(true)
+    setModelsError('')
     try {
       if (provider === 'openrouter') {
         const res = await fetch('https://openrouter.ai/api/v1/models')
@@ -314,85 +460,254 @@ export default function Dashboard({
           setDynamicModels(models)
           return
         }
-      } else if (provider === 'groq' && apiKey) {
-        const url = baseUrl || 'https://api.groq.com/openai/v1/models'
-        const res = await fetch(url, {
-          headers: { 'Authorization': `Bearer ${apiKey}` }
-        })
-        if (res.ok) {
-          const data = await res.json()
-          if (data && Array.isArray(data.data)) {
-            const models = data.data.map(m => ({ value: m.id, label: m.id }))
-            if (llmModel && !models.some(m => m.value === llmModel)) {
-              models.unshift({ value: llmModel, label: llmModel })
-            }
-            setDynamicModels(models)
-            return
-          }
-        }
-      } else if (provider === 'openai' && apiKey) {
-        const url = baseUrl || 'https://api.openai.com/v1/models'
-        const res = await fetch(url, {
-          headers: { 'Authorization': `Bearer ${apiKey}` }
-        })
-        if (res.ok) {
-          const data = await res.json()
-          if (data && Array.isArray(data.data)) {
-            const models = data.data
-              .filter(m => m.id.startsWith('gpt') || m.id.startsWith('o1') || m.id.startsWith('o3'))
-              .map(m => ({ value: m.id, label: m.id }))
-            if (models.length > 0) {
-              if (llmModel && !models.some(m => m.value === llmModel)) {
-                models.unshift({ value: llmModel, label: llmModel })
+      } else if (provider === 'groq') {
+        // 1. Direct fetch attempt
+        try {
+          if (apiKey) {
+            const url = baseUrl || (isDev ? '/api-proxy/groq/openai/v1/models' : 'https://api.groq.com/openai/v1/models')
+            const res = await fetch(url, {
+              headers: { 'Authorization': `Bearer ${apiKey}` }
+            })
+            if (res.ok) {
+              const data = await res.json()
+              if (data && Array.isArray(data.data)) {
+                const models = data.data.map(m => ({ value: m.id, label: m.id }))
+                if (llmModel && !models.some(m => m.value === llmModel)) {
+                  models.unshift({ value: llmModel, label: llmModel })
+                }
+                setDynamicModels(models)
+                return
               }
-              setDynamicModels(models)
-              return
             }
           }
+        } catch (e) {
+          console.warn('Groq direct fetch failed (likely CORS), trying OpenRouter fallback...', e)
         }
-      } else if (provider === 'gemini' && apiKey) {
-        const geminiBase = baseUrl || 'https://generativelanguage.googleapis.com/v1beta/models'
-        const url = geminiBase.includes('?') ? `${geminiBase}&key=${apiKey}` : `${geminiBase}?key=${apiKey}`
-        const res = await fetch(url)
-        if (res.ok) {
-          const data = await res.json()
-          if (data && Array.isArray(data.models)) {
-            const models = data.models
-              .filter(m => m.supportedGenerationMethods?.includes('generateContent'))
-              .map(m => {
-                const name = m.name.startsWith('models/') ? m.name.replace('models/', '') : m.name
-                return { value: name, label: m.displayName || name }
-              })
-            if (models.length > 0) {
-              if (llmModel && !models.some(m => m.value === llmModel)) {
-                models.unshift({ value: llmModel, label: llmModel })
+
+        // 2. OpenRouter cross-reference proxy fallback
+        try {
+          const res = await fetch('https://openrouter.ai/api/v1/models')
+          if (res.ok) {
+            const data = await res.json()
+            if (data && Array.isArray(data.data)) {
+              const groqSuffixes = [
+                'llama-3.3-70b-specdec',
+                'llama-3.3-70b-versatile',
+                'llama-3.1-70b-versatile',
+                'llama-3.1-8b-instant',
+                'llama3-70b-8192',
+                'llama3-8b-8192',
+                'mixtral-8x7b-32768',
+                'gemma2-9b-it',
+                'deepseek-r1-distill-llama-70b',
+                'deepseek-r1-distill-qwen-32b',
+                'llama-3.2-1b-preview',
+                'llama-3.2-3b-preview',
+                'llama-3.2-11b-vision-preview',
+                'llama-3.2-90b-vision-preview'
+              ]
+              const models = data.data
+                .map(m => {
+                  const cleanId = m.id.replace(/^~/, '')
+                  const parts = cleanId.split('/')
+                  const suffix = parts[parts.length - 1]
+                  return { value: suffix, label: m.name || suffix }
+                })
+                .filter(m => groqSuffixes.includes(m.value))
+              
+              if (models.length > 0) {
+                const unique = Array.from(new Map(models.map(item => [item.value, item])).values())
+                unique.sort((a, b) => a.label.localeCompare(b.label))
+                if (llmModel && !unique.some(m => m.value === llmModel)) {
+                  unique.unshift({ value: llmModel, label: llmModel })
+                }
+                setDynamicModels(unique)
+                return
               }
-              setDynamicModels(models)
-              return
             }
           }
+        } catch (e) {
+          console.warn('OpenRouter fallback failed for Groq:', e)
         }
-      } else if (provider === 'claude' && apiKey) {
-        const url = baseUrl || 'https://api.anthropic.com/v1/models'
-        const res = await fetch(url, {
-          headers: {
-            'x-api-key': apiKey,
-            'anthropic-version': '2023-06-01',
-            'dangerouslyAllowBrowser': 'true'
-          }
-        })
-        if (res.ok) {
-          const data = await res.json()
-          if (data && Array.isArray(data.data)) {
-            const models = data.data.map(m => ({ value: m.id, label: m.display_name || m.id }))
-            if (models.length > 0) {
-              if (llmModel && !models.some(m => m.value === llmModel)) {
-                models.unshift({ value: llmModel, label: llmModel })
+      } else if (provider === 'openai') {
+        // 1. Direct fetch attempt
+        try {
+          if (apiKey) {
+            const url = baseUrl || (isDev ? '/api-proxy/openai/v1/models' : 'https://api.openai.com/v1/models')
+            const res = await fetch(url, {
+              headers: { 'Authorization': `Bearer ${apiKey}` }
+            })
+            if (res.ok) {
+              const data = await res.json()
+              if (data && Array.isArray(data.data)) {
+                const models = data.data
+                  .filter(m => m.id.startsWith('gpt') || m.id.startsWith('o1') || m.id.startsWith('o3'))
+                  .map(m => ({ value: m.id, label: m.id }))
+                if (models.length > 0) {
+                  if (llmModel && !models.some(m => m.value === llmModel)) {
+                    models.unshift({ value: llmModel, label: llmModel })
+                  }
+                  setDynamicModels(models)
+                  return
+                }
               }
-              setDynamicModels(models)
-              return
             }
           }
+        } catch (e) {
+          console.warn('OpenAI direct fetch failed (likely CORS), trying OpenRouter fallback...', e)
+        }
+
+        // 2. OpenRouter cross-reference proxy fallback
+        try {
+          const res = await fetch('https://openrouter.ai/api/v1/models')
+          if (res.ok) {
+            const data = await res.json()
+            if (data && Array.isArray(data.data)) {
+              const models = data.data
+                .filter(m => {
+                  const cleanId = m.id.replace(/^~/, '')
+                  return cleanId.startsWith('openai/')
+                })
+                .map(m => {
+                  const cleanId = m.id.replace(/^~/, '')
+                  const rawId = cleanId.replace('openai/', '')
+                  return { value: rawId, label: m.name ? m.name.replace('OpenAI: ', '') : rawId }
+                })
+              if (models.length > 0) {
+                models.sort((a, b) => a.label.localeCompare(b.label))
+                if (llmModel && !models.some(m => m.value === llmModel)) {
+                  models.unshift({ value: llmModel, label: llmModel })
+                }
+                setDynamicModels(models)
+                return
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('OpenRouter fallback failed for OpenAI:', e)
+        }
+      } else if (provider === 'gemini') {
+        // 1. Direct fetch attempt
+        try {
+          if (apiKey) {
+            const geminiBase = baseUrl || 'https://generativelanguage.googleapis.com/v1beta/models'
+            const url = geminiBase.includes('?') ? `${geminiBase}&key=${apiKey}` : `${geminiBase}?key=${apiKey}`
+            const res = await fetch(url)
+            if (res.ok) {
+              const data = await res.json()
+              if (data && Array.isArray(data.models)) {
+                const models = data.models
+                  .filter(m => m.supportedGenerationMethods?.includes('generateContent'))
+                  .map(m => {
+                    const name = m.name.startsWith('models/') ? m.name.replace('models/', '') : m.name
+                    return { value: name, label: m.displayName || name }
+                  })
+                if (models.length > 0) {
+                  if (llmModel && !models.some(m => m.value === llmModel)) {
+                    models.unshift({ value: llmModel, label: llmModel })
+                  }
+                  setDynamicModels(models)
+                  return
+                }
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('Gemini direct fetch failed, trying OpenRouter fallback...', e)
+        }
+
+        // 2. OpenRouter cross-reference proxy fallback
+        try {
+          const res = await fetch('https://openrouter.ai/api/v1/models')
+          if (res.ok) {
+            const data = await res.json()
+            if (data && Array.isArray(data.data)) {
+              const models = data.data
+                .filter(m => {
+                  const cleanId = m.id.replace(/^~/, '')
+                  return cleanId.startsWith('google/') && cleanId.includes('gemini')
+                })
+                .map(m => {
+                  const cleanId = m.id.replace(/^~/, '')
+                  const rawId = cleanId.replace('google/', '')
+                  return { value: rawId, label: m.name ? m.name.replace('Google: ', '') : rawId }
+                })
+              if (models.length > 0) {
+                models.sort((a, b) => a.label.localeCompare(b.label))
+                if (llmModel && !models.some(m => m.value === llmModel)) {
+                  models.unshift({ value: llmModel, label: llmModel })
+                }
+                setDynamicModels(models)
+                return
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('OpenRouter fallback failed for Gemini:', e)
+        }
+      } else if (provider === 'claude') {
+        // 1. Direct fetch attempt
+        try {
+          if (apiKey) {
+            const url = baseUrl || (isDev ? '/api-proxy/anthropic/v1/models' : 'https://api.anthropic.com/v1/models')
+            const res = await fetch(url, {
+              headers: {
+                'x-api-key': apiKey,
+                'anthropic-version': '2023-06-01',
+                'dangerouslyAllowBrowser': 'true'
+              }
+            })
+            if (res.ok) {
+              const data = await res.json()
+              if (data && Array.isArray(data.data)) {
+                const models = data.data.map(m => ({ value: m.id, label: m.display_name || m.id }))
+                if (models.length > 0) {
+                  if (llmModel && !models.some(m => m.value === llmModel)) {
+                    models.unshift({ value: llmModel, label: llmModel })
+                  }
+                  setDynamicModels(models)
+                  return
+                }
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('Claude direct fetch failed (likely CORS), trying OpenRouter fallback...', e)
+        }
+
+        // 2. OpenRouter cross-reference proxy fallback
+        try {
+          const res = await fetch('https://openrouter.ai/api/v1/models')
+          if (res.ok) {
+            const data = await res.json()
+            if (data && Array.isArray(data.data)) {
+              const models = data.data
+                .filter(m => {
+                  const cleanId = m.id.replace(/^~/, '')
+                  return cleanId.startsWith('anthropic/')
+                })
+                .map(m => {
+                  const cleanId = m.id.replace(/^~/, '')
+                  const rawId = cleanId.replace('anthropic/', '')
+                  // Map OpenRouter specific Claude names to official Anthropic model IDs (dashes instead of dots)
+                  let officialId = rawId.replace(/\./g, '-')
+                  if (officialId === 'claude-3-5-sonnet') officialId = 'claude-3-5-sonnet-latest'
+                  if (officialId === 'claude-3-5-haiku') officialId = 'claude-3-5-haiku-latest'
+                  if (officialId === 'claude-3-opus') officialId = 'claude-3-opus-latest'
+                  return { value: officialId, label: m.name ? m.name.replace('Anthropic: ', '') : officialId }
+                })
+              if (models.length > 0) {
+                models.sort((a, b) => a.label.localeCompare(b.label))
+                if (llmModel && !models.some(m => m.value === llmModel)) {
+                  models.unshift({ value: llmModel, label: llmModel })
+                }
+                setDynamicModels(models)
+                return
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('OpenRouter fallback failed for Claude:', e)
         }
       }
       
@@ -400,6 +715,7 @@ export default function Dashboard({
       setDynamicModels(providerModels[provider] || [])
     } catch (err) {
       console.warn(`Dynamic models fetch failed for ${provider}, using static fallback:`, err)
+      setModelsError(`Live API Fetch Failed: ${err.message || err}. Preset static fallbacks loaded.`)
       setDynamicModels(providerModels[provider] || [])
     } finally {
       setLoadingModels(false)
@@ -450,7 +766,7 @@ export default function Dashboard({
       if (user.isSandbox) {
         setDbConfigStatus('sandbox')
         const dispName = user.display_name || namePart
-        setProfile({ display_name: dispName, eco_id: namePart, badge_status: 'Seedling' })
+        setProfile({ display_name: dispName, eco_id: namePart, badge_status: 'Carbon Beginner' })
         
         // Fetch logs from localStorage
         const localLogs = localStorage.getItem(`eco_logs_${user.id}`)
@@ -465,10 +781,25 @@ export default function Dashboard({
               calculated_kg: 2.4,
               efficiency_score: 88.0,
               category: 'mixed',
-              suggestions: [
-                'Great job taking public transport! It is 4x more efficient than driving.',
-                'Plant-based lunches represent the lowest dietary footprint. Excellent eco-choice!'
+              narrative: 'Your transit and diet choices today kept emissions remarkably low. Choosing public rail instead of driving saved approximately 5.2 kg of CO2, while a plant-based lunch represents a nearly zero-carbon footprint.',
+              causes: [
+                { activity: 'Rail transit commute', label: 'Eco transport', kg: 0.8, impact: 'low' },
+                { activity: 'Vegetarian lunch', label: 'Low-impact diet', kg: 0.6, impact: 'low' },
+                { activity: 'Base home energy', label: 'Household baseline', kg: 1.0, impact: 'low' }
               ],
+              suggestions: [
+                {
+                  title: 'Maintain active travel habits',
+                  detail: 'Consistently using rail transit instead of single-passenger driving keeps your transit footprint 80% below average.',
+                  steps: ['Consider walking to local errands', 'Verify tire pressures for weekend drives', 'Advocate for company transit benefits']
+                },
+                {
+                  title: 'Explore local seasonal produce',
+                  detail: 'Sourcing food locally can shave off another 5% in shipping emissions.',
+                  steps: ['Visit a local farmers market', 'Check labels for country of origin', 'Try one new seasonal vegetable']
+                }
+              ],
+              motivation: 'Sustainable choices aren\'t always the most convenient, but your commitment to taking the train and eating green shows that small daily updates aggregate to global impact. Keep up the amazing work!',
               created_at: new Date(Date.now() - 3600000 * 24).toISOString()
             },
             {
@@ -477,10 +808,25 @@ export default function Dashboard({
               calculated_kg: 17.5,
               efficiency_score: 12.5,
               category: 'mixed',
-              suggestions: [
-                'Switch to public transit or carpooling to reduce personal vehicle emissions.',
-                'Consumer goods carry hidden supply-chain emissions. Focus on reuse or second-hand items.'
+              narrative: 'A high-impact transit option combined with consumer goods shopping elevated your emissions today. Driving an SUV produces significant tailpipe emissions, and new garments carry heavy supply-chain footprints.',
+              causes: [
+                { activity: 'Driving SUV to shop', label: 'Fossil transport', kg: 9.5, impact: 'high' },
+                { activity: 'New cotton shirts', label: 'Consumer goods', kg: 6.0, impact: 'high' },
+                { activity: 'Plastic packaged items', label: 'Landfill waste', kg: 2.0, impact: 'medium' }
               ],
+              suggestions: [
+                {
+                  title: 'Consolidate vehicle trips',
+                  detail: 'Combining multiple errands into a single trip reduces cold-start engine inefficiencies and saves gasoline.',
+                  steps: ['Plan errands along a single route', 'Carpool with family or neighbors', 'Check if items can be delivered together']
+                },
+                {
+                  title: 'Consider circular fashion options',
+                  detail: 'Extending the life of garments or buying thrifted items directly offsets energy-intensive cotton manufacturing.',
+                  steps: ['Check neighborhood thrift stores', 'Donate unused clothes instead of throwing them out', 'Wash garments in cold water to preserve fiber life']
+                }
+              ],
+              motivation: 'Every day is a fresh opportunity to reset. Acknowledging our footprint is the first step toward carbon consciousness, and building simple transit and consumption habits over time makes sustainability feel natural and empowering.',
               created_at: new Date(Date.now() - 3600000 * 48).toISOString()
             }
           ]
@@ -500,23 +846,29 @@ export default function Dashboard({
       
       if (profileErr) {
         console.error('Profile fetch issue:', profileErr)
-        // Auto-create profile if missing in public.profiles table (fallback safety)
-        const randomId = namePart + '-' + Math.floor(100 + Math.random() * 900)
-        
-        const { data: newProfile, error: createProfileErr } = await supabase
-          .from('profiles')
-          .insert([{ id: user.id, display_name: namePart, eco_id: randomId, badge_status: 'Seedling' }])
-          .select()
-          .single()
+        // Detect if the profiles table is actually missing or if it's just that the profile row doesn't exist
+        const isTableMissing = profileErr.code === '42P01' || profileErr.message?.includes('relation "profiles" does not exist')
 
-        if (!createProfileErr && newProfile) {
-          setProfile(newProfile)
-          setDbConfigStatus('connected')
-        } else {
-          // Table likely doesn't exist
+        if (isTableMissing) {
           setDbConfigStatus('missing_tables')
           // Set mock profile
-          setProfile({ display_name: namePart, eco_id: namePart, badge_status: 'Seedling' })
+          setProfile({ display_name: user.display_name || namePart, eco_id: namePart, badge_status: 'Carbon Beginner' })
+        } else {
+          // Auto-create profile if missing in public.profiles table (fallback safety)
+          const randomId = namePart + '-' + Math.floor(100 + Math.random() * 900)
+          const { data: newProfile, error: createProfileErr } = await supabase
+            .from('profiles')
+            .insert([{ id: user.id, display_name: user.display_name || namePart, eco_id: randomId, badge_status: 'Carbon Beginner' }])
+            .select()
+            .single()
+
+          if (!createProfileErr && newProfile) {
+            setProfile(newProfile)
+            setDbConfigStatus('connected')
+          } else {
+            setDbConfigStatus('missing_tables')
+            setProfile({ display_name: user.display_name || namePart, eco_id: namePart, badge_status: 'Carbon Beginner' })
+          }
         }
       } else {
         setProfile(profileData)
@@ -545,10 +897,25 @@ export default function Dashboard({
               calculated_kg: 2.4,
               efficiency_score: 88.0,
               category: 'mixed',
-              suggestions: [
-                'Great job taking public transport! It is 4x more efficient than driving.',
-                'Plant-based lunches represent the lowest dietary footprint. Excellent eco-choice!'
+              narrative: 'Your transit and diet choices today kept emissions remarkably low. Choosing public rail instead of driving saved approximately 5.2 kg of CO2, while a plant-based lunch represents a nearly zero-carbon footprint.',
+              causes: [
+                { activity: 'Rail transit commute', label: 'Eco transport', kg: 0.8, impact: 'low' },
+                { activity: 'Vegetarian lunch', label: 'Low-impact diet', kg: 0.6, impact: 'low' },
+                { activity: 'Base home energy', label: 'Household baseline', kg: 1.0, impact: 'low' }
               ],
+              suggestions: [
+                {
+                  title: 'Maintain active travel habits',
+                  detail: 'Consistently using rail transit instead of single-passenger driving keeps your transit footprint 80% below average.',
+                  steps: ['Consider walking to local errands', 'Verify tire pressures for weekend drives', 'Advocate for company transit benefits']
+                },
+                {
+                  title: 'Explore local seasonal produce',
+                  detail: 'Sourcing food locally can shave off another 5% in shipping emissions.',
+                  steps: ['Visit a local farmers market', 'Check labels for country of origin', 'Try one new seasonal vegetable']
+                }
+              ],
+              motivation: "Sustainable choices aren't always the most convenient, but your commitment to taking the train and eating green shows that small daily updates aggregate to global impact. Keep up the amazing work!",
               created_at: new Date(Date.now() - 3600000 * 24).toISOString()
             },
             {
@@ -557,10 +924,25 @@ export default function Dashboard({
               calculated_kg: 17.5,
               efficiency_score: 12.5,
               category: 'mixed',
-              suggestions: [
-                'Switch to public transit or carpooling to reduce personal vehicle emissions.',
-                'Consumer goods carry hidden supply-chain emissions. Focus on reuse or second-hand items.'
+              narrative: 'A high-impact transit option combined with consumer goods shopping elevated your emissions today. Driving an SUV produces significant tailpipe emissions, and new garments carry heavy supply-chain footprints.',
+              causes: [
+                { activity: 'Driving SUV to shop', label: 'Fossil transport', kg: 9.5, impact: 'high' },
+                { activity: 'New cotton shirts', label: 'Consumer goods', kg: 6.0, impact: 'high' },
+                { activity: 'Plastic packaged items', label: 'Landfill waste', kg: 2.0, impact: 'medium' }
               ],
+              suggestions: [
+                {
+                  title: 'Consolidate vehicle trips',
+                  detail: 'Combining multiple errands into a single trip reduces cold-start engine inefficiencies and saves gasoline.',
+                  steps: ['Plan errands along a single route', 'Carpool with family or neighbors', 'Check if items can be delivered together']
+                },
+                {
+                  title: 'Consider circular fashion options',
+                  detail: 'Extending the life of garments or buying thrifted items directly offsets energy-intensive cotton manufacturing.',
+                  steps: ['Check neighborhood thrift stores', 'Donate unused clothes instead of throwing them out', 'Wash garments in cold water to preserve fiber life']
+                }
+              ],
+              motivation: 'Every day is a fresh opportunity to reset. Acknowledging our footprint is the first step toward carbon consciousness, and building simple transit and consumption habits over time makes sustainability feel natural and empowering.',
               created_at: new Date(Date.now() - 3600000 * 48).toISOString()
             }
           ]
@@ -581,13 +963,94 @@ export default function Dashboard({
     fetchData()
   }, [user.id])
 
+  // Helper to determine rank based on rolling average score (1.0 to 10.0)
+  const getRankFromAverage = (avg) => {
+    if (avg >= 9.0) return 'Eco Vanguard'
+    if (avg >= 7.0) return 'Earth Guardian'
+    if (avg >= 4.0) return 'Sustainability Seeker'
+    return 'Carbon Beginner'
+  }
+
+  // Intraday Aggregation & Sliding Window Pre-processor
+  const rollingMetrics = useMemo(() => {
+    if (logs.length === 0) {
+      return {
+        rollingAverage: 0,
+        uniqueDaysCount: 0,
+        dailyLogs: [],
+        averageFootprint: 0
+      }
+    }
+
+    const dateBuckets = {} // { 'YYYY-MM-DD': { scoreSum: 0, scoreCount: 0, carbonSum: 0 } }
+    
+    logs.forEach(log => {
+      const ts = log.created_at || log.timestamp || new Date().toISOString()
+      const dateStr = ts.substring(0, 10) // YYYY-MM-DD
+      
+      let rawScore = Number(log.efficiency_score)
+      if (isNaN(rawScore)) rawScore = 5.0
+      // Normalize: if score is > 10, it's out of 100. Convert to 1-10 range.
+      const score = rawScore > 10 ? rawScore / 10 : rawScore
+      
+      const carbon = Number(log.calculated_kg || log.carbon_mass_kg || 0)
+
+      if (!dateBuckets[dateStr]) {
+        dateBuckets[dateStr] = { scoreSum: 0, scoreCount: 0, carbonSum: 0 }
+      }
+      dateBuckets[dateStr].scoreSum += score
+      dateBuckets[dateStr].scoreCount += 1
+      dateBuckets[dateStr].carbonSum += carbon
+    })
+
+    const dailyData = Object.keys(dateBuckets).map(dateStr => {
+      const bucket = dateBuckets[dateStr]
+      return {
+        date: dateStr,
+        avgEfficiency: bucket.scoreSum / bucket.scoreCount,
+        totalCarbon: bucket.carbonSum
+      }
+    })
+
+    // Sort: newest date to oldest date (descending)
+    dailyData.sort((a, b) => b.date.localeCompare(a.date))
+
+    // Sliding window cut: maximum length of 10 days
+    const windowDays = dailyData.slice(0, 10)
+    const uniqueDaysCount = windowDays.length
+
+    let rollingAverage = 0
+    let avgFootprint = 0
+
+    if (uniqueDaysCount > 0) {
+      const totalScore = windowDays.reduce((acc, curr) => acc + curr.avgEfficiency, 0)
+      rollingAverage = totalScore / uniqueDaysCount
+
+      const totalCarbon = windowDays.reduce((acc, curr) => acc + curr.totalCarbon, 0)
+      avgFootprint = totalCarbon / uniqueDaysCount
+    }
+
+    return {
+      rollingAverage: parseFloat(rollingAverage.toFixed(2)),
+      uniqueDaysCount,
+      dailyLogs: windowDays,
+      averageFootprint: parseFloat(avgFootprint.toFixed(2))
+    }
+  }, [logs])
+
+  const rollingAverage = rollingMetrics.rollingAverage
+  const uniqueDaysCount = rollingMetrics.uniqueDaysCount
+
   // Compute metrics
   const logsCount = logs.length
   const totalKg = logs.reduce((acc, log) => acc + Number(log.calculated_kg), 0)
   const averageFootprint = logsCount > 0 ? (totalKg / logsCount) : 0
-  const averageEfficiency = logsCount > 0 
-    ? (logs.reduce((acc, log) => acc + Number(log.efficiency_score), 0) / logsCount) 
-    : 100
+  const averageEfficiency = rollingAverage * 10 // scale to 0-100% for progress rings and percentages
+
+  // Calculate pledges and projected reductions
+  const activePledgesCount = Object.keys(pledges).length
+  const projectedDailySavings = activePledgesCount * 1.5 // 1.5 kg CO2 saved per active pledge
+  const projectedAvgFootprint = Math.max(0, averageFootprint - projectedDailySavings)
 
   // Category breakdown
   const categoryCounts = logs.reduce((acc, log) => {
@@ -615,13 +1078,14 @@ export default function Dashboard({
     if (!journalText.trim()) return
 
     setSubmitting(true)
+    setSubmitError('')
     
     const providerName = appSettings?.llm_provider || 'local'
     const providerLabel = providerName === 'local' ? 'Local Parser' : `${providerName.toUpperCase()} Engine`
 
     const steps = [
       'Establishing secure handshake with sync nodes...',
-      `Analyzing linguistic vectors via ${providerLabel}...`,
+      'Analyzing activity vectors via Neural Carbon Engine...',
       'Synchronizing logs to Supabase ledger database...'
     ]
     setSyncSteps(steps)
@@ -635,10 +1099,24 @@ export default function Dashboard({
     
     let calculation
     try {
-      calculation = await analyzeJournalEntryAsync(journalText, appSettings)
+      // Always use the freshest settings from localStorage (saved by handleSaveSettings),
+      // falling back to the appSettings prop if localStorage is empty/stale.
+      let activeSettings = appSettings
+      try {
+        const localRaw = localStorage.getItem('aether_app_settings')
+        if (localRaw) {
+          const localParsed = JSON.parse(localRaw)
+          // Use local settings if they are newer or if prop is stale (e.g. still has old provider)
+          activeSettings = localParsed
+        }
+      } catch (_) {}
+      calculation = await analyzeJournalEntryAsync(journalText, activeSettings)
     } catch (err) {
       console.error('Linguistic calculation exception:', err)
-      calculation = analyzeJournalEntry(journalText, appSettings)
+      setSubmitError(err.message || 'LLM connection error. Sync aborted.')
+      setSubmitting(false)
+      setCurrentStepIndex(-1)
+      return
     }
 
     // Step 3: Database ledger synchronization
@@ -651,24 +1129,27 @@ export default function Dashboard({
         raw_text: journalText,
         calculated_kg: calculation.calculated_kg,
         efficiency_score: calculation.efficiency_score,
-        category: calculation.category,
-        suggestions: calculation.suggestions,
+        category: calculation.category || null,
+        narrative: calculation.narrative || '',
+        causes: calculation.causes || [],
+        suggestions: calculation.suggestions || [],
+        motivation: calculation.motivation || '',
         created_at: new Date().toISOString()
       }
 
       if (dbConfigStatus === 'connected') {
-        // Save to real Supabase database
+        // Save to real Supabase database — errors surface directly to the user
         const { data, error } = await supabase
           .from('journal_logs')
           .insert([newLog])
           .select()
-        
+
         if (error) throw error
         if (data && data[0]) {
           setLogs(prev => [data[0], ...prev])
         }
       } else {
-        // Fallback: Save to localStorage
+        // Fallback: Save to localStorage (sandbox / no-DB mode)
         const finalMockLog = {
           log_id: `mock-${Date.now()}`,
           ...newLog
@@ -685,7 +1166,7 @@ export default function Dashboard({
       setShowMobileEntrySheet(false)
     } catch (err) {
       console.error('Error submitting log:', err)
-      alert('Failed to synchronize log: ' + err.message)
+      setSubmitError(err.message || 'Failed to synchronize log.')
     } finally {
       setSubmitting(false)
       setCurrentStepIndex(-1)
@@ -715,30 +1196,32 @@ export default function Dashboard({
     }
   }
 
-  // Badge Status check
-  const checkAndUpdateBadge = async (count, avgEff) => {
-    if (!profile) return
+  // Reactive Badge Status Check & Sync Hook
+  useEffect(() => {
+    if (!profile || logs.length === 0) return
 
-    let nextBadge = 'Seedling'
-    if (count >= 15 && avgEff >= 85) nextBadge = 'Forest Guardian'
-    else if (count >= 8 && avgEff >= 70) nextBadge = 'Sapling'
-    else if (count >= 3) nextBadge = 'Sprout'
-
+    const nextBadge = getRankFromAverage(rollingAverage)
     if (profile.badge_status !== nextBadge) {
-      if (dbConfigStatus === 'connected') {
-        const { error } = await supabase
-          .from('profiles')
-          .update({ badge_status: nextBadge })
-          .eq('id', user.id)
-        
-        if (!error) {
+      const syncBadge = async () => {
+        if (dbConfigStatus === 'connected') {
+          const { error } = await supabase
+            .from('profiles')
+            .update({ badge_status: nextBadge })
+            .eq('id', user.id)
+          
+          if (!error) {
+            setProfile(prev => ({ ...prev, badge_status: nextBadge }))
+          }
+        } else {
           setProfile(prev => ({ ...prev, badge_status: nextBadge }))
         }
-      } else {
-        setProfile(prev => ({ ...prev, badge_status: nextBadge }))
       }
+      syncBadge()
     }
-  }
+  }, [rollingAverage, profile?.id, dbConfigStatus, user.id, logs.length])
+
+  // Deprecated: updates are handled reactively by useEffect above
+  const checkAndUpdateBadge = async () => {}
 
   // Get category icon
   const getCategoryIcon = (cat) => {
@@ -751,21 +1234,163 @@ export default function Dashboard({
     }
   }
 
+  // Helper to generate SVG path for a starburst (used for the certificate seal)
+  const getStarburstPath = (points = 36, outerRadius = 50, innerRadius = 42) => {
+    let path = ''
+    for (let i = 0; i < points * 2; i++) {
+      const angle = (Math.PI * i) / points
+      const radius = i % 2 === 0 ? outerRadius : innerRadius
+      const x = 50 + Math.cos(angle) * radius
+      const y = 50 + Math.sin(angle) * radius
+      if (i === 0) {
+        path += `M ${x} ${y}`
+      } else {
+        path += ` L ${x} ${y}`
+      }
+    }
+    path += ' Z'
+    return path
+  }
+
   // Get badge icon / style
   const getBadgeConfig = (badge) => {
     switch (badge) {
-      case 'Forest Guardian':
-        return { label: 'Forest Guardian', style: 'from-emerald-600 to-green-500 text-white', icon: <Globe className="w-4 h-4" /> }
-      case 'Sapling':
-        return { label: 'Sapling', style: 'from-green-500 to-teal-600 text-white', icon: <Award className="w-4 h-4" /> }
-      case 'Sprout':
-        return { label: 'Sprout', style: 'from-amber-500 to-green-500 text-slate-900', icon: <Sparkles className="w-4 h-4" /> }
+      case 'Eco Vanguard':
+        return { label: 'Eco Vanguard', class: 'badge-eco-vanguard text-white', icon: <Award className="w-4.5 h-4.5" /> }
+      case 'Earth Guardian':
+        return { label: 'Earth Guardian', class: 'badge-earth-guardian text-white', icon: <Trees className="w-4.5 h-4.5" /> }
+      case 'Sustainability Seeker':
+        return { label: 'Sustainability Seeker', class: 'badge-sustainability-seeker text-white', icon: <Globe className="w-4.5 h-4.5" /> }
+      case 'Carbon Beginner':
       default:
-        return { label: 'Seedling', style: 'from-slate-200 to-slate-300 text-slate-700 border border-slate-300', icon: <Leaf className="w-4 h-4" /> }
+        return { label: 'Carbon Beginner', class: 'badge-carbon-beginner text-amber-950', icon: <Flame className="w-4.5 h-4.5" /> }
     }
   }
 
-  const badgeConfig = getBadgeConfig(profile?.badge_status || 'Seedling')
+  const downloadCertificate = () => {
+    const node = document.getElementById('certificate-preview-card')
+    if (!node) return
+
+    const recipientName = profile?.display_name || user?.display_name || 'Eco Guardian'
+
+    // Capture the exact HTML element as a high-resolution PNG image
+    toPng(node, { 
+      cacheBust: true, 
+      pixelRatio: 3, // Very high resolution 3x scale for crisp printing
+      width: 800,
+      height: 566,
+      style: {
+        width: '800px',
+        height: '566px',
+        transform: 'scale(1)',
+        transformOrigin: 'top left',
+      }
+    })
+      .then((dataUrl) => {
+        const link = document.createElement('a')
+        link.download = `Aether_Card_${recipientName.replace(/\s+/g, '_')}.png`
+        link.href = dataUrl
+        link.click()
+      })
+      .catch((err) => {
+        console.error('Error generating certificate image:', err)
+      })
+  }
+
+
+  const rank = profile?.badge_status || getRankFromAverage(rollingAverage)
+  const badgeConfig = getBadgeConfig(rank)
+
+  const rankStyles = {
+    'Eco Vanguard': {
+      border: 'border-teal-400/30 bg-gradient-to-br from-teal-500/[0.04] to-teal-400/[0.01]',
+      glow: 'from-teal-500/10 to-transparent',
+      avatarBg: 'from-teal-500/15 to-teal-400/5 border-teal-500/20 text-teal-700',
+      labelColor: 'text-teal-800',
+      shadow: 'shadow-teal-500/[0.03]'
+    },
+    'Earth Guardian': {
+      border: 'border-green-400/30 bg-gradient-to-br from-green-500/[0.04] to-green-400/[0.01]',
+      glow: 'from-green-500/10 to-transparent',
+      avatarBg: 'from-green-500/15 to-green-400/5 border-green-500/20 text-green-700',
+      labelColor: 'text-green-800',
+      shadow: 'shadow-green-500/[0.03]'
+    },
+    'Sustainability Seeker': {
+      border: 'border-blue-400/30 bg-gradient-to-br from-blue-500/[0.04] to-blue-400/[0.01]',
+      glow: 'from-blue-500/10 to-transparent',
+      avatarBg: 'from-blue-500/15 to-blue-400/5 border-blue-500/20 text-blue-700',
+      labelColor: 'text-blue-800',
+      shadow: 'shadow-blue-500/[0.03]'
+    },
+    'Carbon Beginner': {
+      border: 'border-amber-400/30 bg-gradient-to-br from-amber-500/[0.04] to-amber-400/[0.01]',
+      glow: 'from-amber-500/10 to-transparent',
+      avatarBg: 'from-amber-500/15 to-amber-400/5 border-amber-500/20 text-amber-700',
+      labelColor: 'text-amber-800',
+      shadow: 'shadow-amber-500/[0.03]'
+    }
+  }
+
+  const activeRankStyle = rankStyles[rank] || rankStyles['Carbon Beginner']
+
+  const getCertificateDescription = (badge) => {
+    if (badge === 'Eco Vanguard') {
+      return "for successfully demonstrating the highest order of ecological stewardship, maintaining a certified Eco Vanguard Rank, and serving as a beacon of sustainability in continuous carbon logging and sequestration."
+    }
+    if (badge === 'Earth Guardian') {
+      return "for outstanding commitment to environmental preservation, maintaining a certified Earth Guardian Rank, and actively synchronizing daily activities to foster carbon neutrality."
+    }
+    if (badge === 'Sustainability Seeker') {
+      return "for successfully demonstrating commitment to environmental sustainability, maintaining a certified Sustainability Seeker Rank, and continuously logging and offsetting daily carbon activity footprints."
+    }
+    return "for initiating their journey into carbon consciousness, maintaining a certified Carbon Beginner Rank, and taking consistent early steps towards active climate action."
+  }
+
+  const certColors = {
+    'Eco Vanguard': {
+      border: '#0f766e',
+      doubleBorder: '#115e59',
+      text: '#0f766e',
+      leafOpacity: 'text-teal-600/10',
+      sealBg: '#0f766e',
+      sealText: '#ccfbf1',
+      bgGrad: 'linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 50%, #99f6e4 100%)',
+      goldBorder: '#0d9488'
+    },
+    'Earth Guardian': {
+      border: '#16a34a',
+      doubleBorder: '#166534',
+      text: '#15803d',
+      leafOpacity: 'text-emerald-600/10',
+      sealBg: '#15803d',
+      sealText: '#ecfdf5',
+      bgGrad: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 50%, #bbf7d0 100%)',
+      goldBorder: '#16a34a'
+    },
+    'Sustainability Seeker': {
+      border: '#2563eb',
+      doubleBorder: '#1e40af',
+      text: '#1d4ed8',
+      leafOpacity: 'text-blue-600/10',
+      sealBg: '#1d4ed8',
+      sealText: '#dbeafe',
+      bgGrad: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 50%, #bfdbfe 100%)',
+      goldBorder: '#3b82f6'
+    },
+    'Carbon Beginner': {
+      border: '#fbbf24',
+      doubleBorder: '#b45309',
+      text: '#b45309',
+      leafOpacity: 'text-amber-600/10',
+      sealBg: '#b45309',
+      sealText: '#fef3c7',
+      bgGrad: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 50%, #fde68a 100%)',
+      goldBorder: '#d97706'
+    }
+  }
+
+  const activeCertColors = certColors[rank] || certColors['Carbon Beginner']
 
   return (
     <div 
@@ -783,6 +1408,175 @@ export default function Dashboard({
       {/* Main Top Header */}
       <header className="sticky top-0 z-40 w-full glass-panel border-b border-green-100/50 px-6 py-4 flex items-center justify-between relative">
         <div className="flex items-center gap-3">
+          {/* Profile Dropdown Menu trigger */}
+          <div className="relative" ref={profileDropdownRef}>
+            <button
+              onClick={() => setShowProfileDropdown(!showProfileDropdown)}
+              className="w-10 h-10 rounded-xl bg-gradient-to-tr from-green-500/10 to-emerald-500/10 hover:from-green-500/20 hover:to-emerald-500/20 border border-green-200/60 flex items-center justify-center font-black text-green-700 font-title text-base cursor-pointer shadow-sm hover:scale-105 active:scale-95 transition-all select-none overflow-hidden"
+              title="View Profile & Aggregated Metrics"
+            >
+              {avatarImg ? (
+                <img src={avatarImg} alt="Avatar" className="w-full h-full object-cover" />
+              ) : (
+                profile?.display_name?.charAt(0).toUpperCase() || 'G'
+              )}
+            </button>
+            
+            {showProfileDropdown && (
+              <div className="absolute left-0 mt-3 w-80 bg-white/95 backdrop-blur-md border border-green-100/50 shadow-2xl rounded-3xl p-5 z-50 flex flex-col gap-5">
+                {/* Profile Info */}
+                <div className="flex items-center gap-4">
+                  <div 
+                    onClick={triggerFileInput}
+                    className="relative group cursor-pointer w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-green-100 shadow-inner flex items-center justify-center"
+                    title="Click to change profile picture"
+                  >
+                    {avatarImg ? (
+                      <img src={avatarImg} alt="Avatar" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className={`w-full h-full bg-gradient-to-tr ${activeRankStyle.avatarBg} flex items-center justify-center font-bold text-lg font-title`}>
+                        {profile?.display_name?.charAt(0).toUpperCase() || 'G'}
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-[8px] font-bold text-white select-none">
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>EDIT</span>
+                    </div>
+                  </div>
+                  
+                  <input 
+                    type="file" 
+                    id="avatar-file-input" 
+                    className="hidden" 
+                    accept="image/*" 
+                    onChange={handleAvatarChange} 
+                  />
+
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-base font-bold text-slate-800 truncate font-title">
+                      {profile?.display_name || 'Eco Guardian'}
+                    </h3>
+                    <p className="text-xs text-slate-500 font-mono mt-0.5 truncate">
+                      ID: {profile?.eco_id || 'calculating...'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Sync Rank */}
+                <div className="space-y-1.5">
+                  <label className={`text-[9px] font-bold ${activeRankStyle.labelColor} uppercase tracking-wider font-mono`}>Sync Rank</label>
+                  <div className={`metallic-badge ${badgeConfig.class} p-2.5 rounded-xl flex items-center justify-between shadow-md hover:scale-[1.01] transition-all duration-300`}>
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center relative border border-white/30 shadow-inner">
+                        <div className="relative z-10 scale-95 flex items-center">
+                          {badgeConfig.icon}
+                        </div>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[8px] font-bold uppercase tracking-wider opacity-75 font-mono leading-none">Rank Status</span>
+                        <span className="text-[10px] font-black tracking-tight leading-none mt-1 font-title">{badgeConfig.label}</span>
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-[8px] font-mono uppercase font-bold bg-white/25 px-1.5 py-0.5 rounded-full border border-white/25">
+                        Verified
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Aether Card button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCertificate(true)
+                    setShowProfileDropdown(false)
+                  }}
+                  className="w-full p-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white font-mono font-bold text-[9px] tracking-wider flex items-center justify-center gap-1.5 cursor-pointer shadow-md active:scale-95 transition-all"
+                >
+                  <Award className="w-3.5 h-3.5 text-emerald-100" />
+                  CLAIM AETHER CARD
+                </button>
+
+                <div className="border-t border-slate-100 my-1" />
+
+                {/* Aggregated Metrics */}
+                <div className="space-y-4">
+                  <h4 className="text-[10px] font-bold text-green-800 uppercase tracking-wider font-mono">
+                    AGGREGATED METRICS
+                  </h4>
+                  
+                  {/* Circular Dial: Carbon Average */}
+                  <div className="flex flex-col items-center">
+                    <div className="relative w-24 h-24 flex items-center justify-center">
+                      <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                        <circle cx="50" cy="50" r="42" fill="transparent" stroke="rgba(0,0,0,0.03)" strokeWidth="6" />
+                        {activePledgesCount > 0 && (
+                          <circle 
+                            cx="50" 
+                            cy="50" 
+                            r="42" 
+                            fill="transparent" 
+                            stroke="#86efac" 
+                            strokeWidth="5" 
+                            strokeDasharray="4 2" 
+                            strokeDashoffset={263.8 - (263.8 * Math.min(100, (projectedAvgFootprint / 20) * 100)) / 100}
+                            strokeLinecap="round" 
+                            className="transition-all duration-1000 ease-out"
+                          />
+                        )}
+                        <circle 
+                          cx="50" 
+                          cy="50" 
+                          r="42" 
+                          fill="transparent" 
+                          stroke="url(#dropdownGreenGlow)" 
+                          strokeWidth="6" 
+                          strokeDasharray={263.8} 
+                          strokeDashoffset={263.8 - (263.8 * Math.min(100, (averageFootprint / 20) * 100)) / 100}
+                          strokeLinecap="round" 
+                          className="transition-all duration-1000 ease-out"
+                        />
+                        <defs>
+                          <linearGradient id="dropdownGreenGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stopColor="#22c55e" />
+                            <stop offset="100%" stopColor="#15803d" />
+                          </linearGradient>
+                        </defs>
+                      </svg>
+                      
+                      <div className="absolute flex flex-col items-center">
+                        <span className="text-lg font-black text-slate-800 font-title tracking-tight">
+                          <AnimatedCounter value={averageFootprint} />
+                        </span>
+                        <span className="text-[8px] text-slate-400 uppercase font-mono tracking-wider font-bold leading-none">Avg kg CO2</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 10-Day Rolling Efficiency Progress bar */}
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between text-[10px]">
+                      <span className="text-slate-500">10-Day Efficiency</span>
+                      <span className="text-green-700 font-bold font-mono"><AnimatedCounter value={averageEfficiency} />%</span>
+                    </div>
+                    <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: `${averageEfficiency}%` }}
+                        transition={{ duration: 1.2, ease: 'easeOut' }}
+                        className="h-full bg-gradient-to-r from-green-500 to-emerald-600"
+                      />
+                    </div>
+                    <p className="text-[9px] text-slate-400 leading-normal text-center">
+                      Target is &lt; 10 kg daily average footprint.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          
           <div className="p-2 bg-green-500/10 rounded-xl border border-green-500/20">
             <Leaf className="w-5 h-5 text-green-600" />
           </div>
@@ -804,26 +1598,9 @@ export default function Dashboard({
         </div>
 
         <div className="flex items-center gap-4">
-          {/* Sync Status Badge */}
-          <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200/60 text-xs font-mono">
-            <div className={`w-2 h-2 rounded-full ${
-              dbConfigStatus === 'connected' 
-                ? 'bg-green-500 animate-pulse' 
-                : dbConfigStatus === 'sandbox' 
-                  ? 'bg-purple-500 animate-pulse' 
-                  : 'bg-amber-500'
-            }`} />
-            <span className="text-slate-600 font-bold">
-              {dbConfigStatus === 'connected' 
-                ? 'SECURE_CLOUD_SYNC' 
-                : dbConfigStatus === 'sandbox' 
-                  ? 'SANDBOX_DEMO_MODE' 
-                  : 'LOCAL_FALLBACK_MODE'}
-            </span>
-          </div>
 
-           {/* Admin Config Dropdown Button (Only visible if adminConfig is loaded) */}
-          {adminConfig && (
+           {/* Admin Config Dropdown Button — ONLY visible to admin device users */}
+          {adminConfig && user?.isAdmin && (
             <div className="relative">
               <button
                 onClick={() => setShowAdminPanel(!showAdminPanel)}
@@ -853,128 +1630,8 @@ export default function Dashboard({
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 relative z-10">
         
-        {/* Desktop Left Sidebar: Profile & Quick Stats */}
-        <section className="lg:col-span-3 flex flex-col gap-6">
-          {/* Profile Card */}
-          <div className="glass-panel rounded-3xl p-5 border border-green-100/50 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-green-500/10 to-transparent rounded-full filter blur-xl pointer-events-none" />
-            
-            <div className="flex items-center gap-4 mb-5">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-green-500/20 to-green-400/10 border border-green-500/20 flex items-center justify-center text-green-700 font-bold text-lg font-title">
-                {profile?.display_name?.charAt(0).toUpperCase() || 'G'}
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-slate-800 truncate max-w-[140px] font-title">
-                  {profile?.display_name || 'Eco Guardian'}
-                </h3>
-                <p className="text-xs text-slate-500 font-mono mt-0.5 truncate max-w-[140px]">
-                  ID: {profile?.eco_id || 'calculating...'}
-                </p>
-              </div>
-            </div>
-
-            {/* Badge Indicator */}
-            <div className="space-y-2 mb-4">
-              <label className="text-[10px] font-bold text-green-800 uppercase tracking-wider font-mono">Sync Rank</label>
-              <div className={`p-3 rounded-xl bg-gradient-to-r ${badgeConfig.style} flex items-center justify-between shadow-sm`}>
-                <span className="text-xs font-bold font-title flex items-center gap-1.5">
-                  {badgeConfig.icon}
-                  {badgeConfig.label}
-                </span>
-                <span className="text-[10px] font-mono opacity-90 uppercase font-bold">Verified</span>
-              </div>
-            </div>
-
-            {/* Sync connection warning for missing tables */}
-            {dbConfigStatus === 'missing_tables' && (
-              <div className="mt-4 p-3 rounded-xl bg-amber-500/5 border border-amber-500/15 text-xs text-amber-800">
-                <div className="flex items-center gap-1.5 font-bold mb-1 font-mono">
-                  <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0" />
-                  Database Schema Missing
-                </div>
-                <p className="leading-snug text-[11px] text-slate-600">
-                  Tables `profiles` or `journal_logs` are not found. Running in local fallback cache. Click settings to view SQL schema script.
-                </p>
-              </div>
-            )}
-
-            {/* Sandbox mode info card */}
-            {dbConfigStatus === 'sandbox' && (
-              <div className="mt-4 p-3 rounded-xl bg-purple-500/5 border border-purple-500/15 text-xs text-purple-800">
-                <div className="flex items-center gap-1.5 font-bold mb-1 font-mono">
-                  <Terminal className="w-4 h-4 text-purple-600 shrink-0" />
-                  Running Sandbox Mode
-                </div>
-                <p className="leading-snug text-[11px] text-slate-600">
-                  Previewing without a live connection. To configure database sync, create a `.env` file in the project folder with your Supabase keys.
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Quick Metrics Dials */}
-          <div className="glass-panel rounded-3xl p-5 border border-green-100/50 flex flex-col gap-5">
-            <h4 className="text-xs font-bold text-green-800 uppercase tracking-wider font-mono border-b border-green-100/40 pb-2">
-              AGGREGATED METRICS
-            </h4>
-
-            {/* Circular Dial: Carbon Average */}
-            <div className="flex flex-col items-center py-2">
-              <div className="relative w-32 h-32 flex items-center justify-center">
-                {/* SVG Progress Circle */}
-                <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                  <circle cx="50" cy="50" r="42" fill="transparent" stroke="rgba(0,0,0,0.03)" strokeWidth="6" />
-                  <circle 
-                    cx="50" 
-                    cy="50" 
-                    r="42" 
-                    fill="transparent" 
-                    stroke="url(#greenGlow)" 
-                    strokeWidth="6" 
-                    strokeDasharray={263.8} 
-                    strokeDashoffset={263.8 - (263.8 * Math.min(100, (averageFootprint / 20) * 100)) / 100}
-                    strokeLinecap="round" 
-                    className="transition-all duration-1000 ease-out"
-                  />
-                  <defs>
-                    <linearGradient id="greenGlow" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor="#22c55e" />
-                      <stop offset="100%" stopColor="#15803d" />
-                    </linearGradient>
-                  </defs>
-                </svg>
-                <div className="absolute flex flex-col items-center">
-                  <span className="text-2xl font-black text-slate-800 font-title tracking-tight">
-                    <AnimatedCounter value={averageFootprint} />
-                  </span>
-                  <span className="text-[10px] text-slate-500 uppercase font-mono tracking-wider font-bold">Avg kg CO2</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Simple Progress Bar: Efficiency Rating */}
-            <div className="space-y-2">
-              <div className="flex justify-between text-xs">
-                <span className="text-slate-500">Ledger Efficiency</span>
-                <span className="text-green-700 font-bold font-mono"><AnimatedCounter value={averageEfficiency} />%</span>
-              </div>
-              <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
-                <motion.div 
-                  initial={{ width: 0 }}
-                  animate={{ width: `${averageEfficiency}%` }}
-                  transition={{ duration: 1.2, ease: 'easeOut' }}
-                  className="h-full bg-gradient-to-r from-green-500 to-emerald-600"
-                />
-              </div>
-              <p className="text-[10px] text-slate-500 leading-normal">
-                Target is &lt; 10 kg daily average footprint.
-              </p>
-            </div>
-          </div>
-        </section>
-
         {/* Middle Area: Interactive Terminal + Feed Logs */}
-        <section className="lg:col-span-6 flex flex-col gap-6">
+        <section className="lg:col-span-12 flex flex-col gap-6">
           
           {/* Greeting Overlay (Header Panel) */}
           <div className="glass-panel rounded-3xl p-6 border border-green-100/50 relative overflow-hidden bg-white/10">
@@ -1069,6 +1726,29 @@ export default function Dashboard({
                   </div>
                 </motion.div>
               )}
+              {submitError && (
+                <motion.div 
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="mt-4 p-4 rounded-xl bg-rose-50 border border-rose-200 font-mono text-xs overflow-hidden text-rose-800"
+                >
+                  <div className="flex items-start gap-2.5">
+                    <ShieldAlert className="w-5 h-5 text-rose-600 shrink-0 mt-0.5 animate-pulse" />
+                    <div>
+                      <div className="font-bold text-rose-950 uppercase tracking-wide mb-1">
+                        SYNCHRONIZATION FAILURE
+                      </div>
+                      <div className="text-[11px] leading-relaxed">
+                        {submitError}
+                      </div>
+                      <div className="mt-2 text-[10px] text-rose-600/70 border-t border-rose-200/50 pt-1.5">
+                        Please verify your LLM provider API credentials in the settings panel. Local fallback is disabled.
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
             </AnimatePresence>
           </div>
 
@@ -1114,255 +1794,310 @@ export default function Dashboard({
             ) : (
               <div className="space-y-4">
                 <AnimatePresence initial={false}>
-                  {logs.map((log) => (
-                    <motion.div
-                      key={log.log_id}
-                      initial={{ opacity: 0, y: 15 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, x: -50 }}
-                      className="glass-panel rounded-3xl p-5 border border-green-100/40 hover:border-green-300/60 transition-all duration-300 relative overflow-hidden"
-                    >
-                      {/* Accent line on top based on efficiency */}
-                      <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${
-                        log.efficiency_score >= 80 
-                          ? 'from-green-500/45 to-emerald-400/45' 
-                          : log.efficiency_score >= 50 
-                            ? 'from-amber-500/45 to-orange-400/45' 
-                            : 'from-pink-500/45 to-red-400/45'
-                      }`} />
+                  {logs.map((log) => {
+                    const rawScore = Number(log.efficiency_score)
+                    const isNewScore = rawScore <= 10
+                    const scoreOutOf10 = isNewScore ? rawScore : rawScore / 10
+                    const scorePercentage = isNewScore ? rawScore * 10 : rawScore
+                    const theme = getThemeProps(rawScore)
 
-                      {/* Header log row */}
-                      <div className="flex justify-between items-start gap-4 mb-3">
-                        <div className="flex items-center gap-2">
-                          <div className="p-1.5 rounded-lg bg-slate-100 border border-slate-200">
-                            {getCategoryIcon(log.category)}
-                          </div>
-                          <div>
-                            <span className="text-xs font-bold text-slate-800 capitalize font-title">
-                              {log.category} log
-                            </span>
-                            <span className="text-[9px] font-mono text-slate-400 ml-2">
-                              {new Date(log.created_at).toLocaleDateString(undefined, { 
-                                month: 'short', 
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}
-                            </span>
-                          </div>
-                        </div>
+                    return (
+                      <motion.div
+                        key={log.log_id}
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, x: -50 }}
+                        className={`glass-panel rounded-3xl border ${theme.border} ${theme.glow} transition-all duration-300 relative overflow-hidden bg-gradient-to-b ${theme.bgGrad}`}
+                      >
+                        {/* Accent line on top based on efficiency */}
+                        <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${
+                          scorePercentage >= 80
+                            ? 'from-emerald-500/60 to-teal-400/60'
+                            : scorePercentage >= 50
+                              ? 'from-amber-500/60 to-orange-400/60'
+                              : 'from-rose-500/60 to-pink-400/60'
+                        }`} />
 
-                        <div className="flex items-center gap-2">
-                          {/* Metrics summary */}
-                          <div className="text-right">
-                            <span className="text-xs font-bold text-slate-800 font-mono block">
-                              {log.calculated_kg} kg
-                            </span>
-                            <span className="text-[9px] text-slate-400 font-mono block uppercase">
-                              CO2 Equivalent
-                            </span>
-                          </div>
-
-                          <button
-                            onClick={() => handleDeleteLog(log.log_id)}
-                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Delete log"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Description */}
-                      <p className="text-xs text-slate-700 leading-relaxed bg-slate-50/70 p-3 rounded-xl border border-slate-200/50 mb-3 font-mono">
-                        "{log.raw_text}"
-                      </p>
-
-                      {/* Suggestions list */}
-                      {log.suggestions && log.suggestions.length > 0 && (
-                        <div className="space-y-1.5 mt-2.5">
-                          <label className="text-[9px] font-bold text-green-800 uppercase tracking-wider font-mono block">
-                            SYNC MITIGATION ADVICE
-                          </label>
-                          <div className="flex flex-col gap-1.5">
-                            {log.suggestions.map((suggestion, idx) => (
-                              <div key={idx} className="flex gap-2 items-start text-[11px] text-green-800 leading-normal bg-green-500/5 border border-green-500/10 px-3 py-1.5 rounded-xl font-medium">
-                                <Sparkles className="w-3 h-3 text-green-600 shrink-0 mt-0.5" />
-                                <span>{suggestion}</span>
+                        <div className="p-5 space-y-4">
+                          {/* Top Row: Date & Status & Delete */}
+                          <div className="flex justify-between items-start">
+                            <div className="flex flex-col gap-0.5">
+                              <span className="text-[11px] font-bold text-slate-400 font-mono uppercase tracking-wide">
+                                {new Date(log.created_at).toLocaleDateString(undefined, {
+                                  weekday: 'short',
+                                  month: 'short',
+                                  day: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </span>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border uppercase tracking-wider font-mono ${theme.badge}`}>
+                                  {theme.label}
+                                </span>
                               </div>
-                            ))}
+                            </div>
+                            
+                            <button
+                              onClick={() => handleDeleteLog(log.log_id)}
+                              className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+                              title="Delete log"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
                           </div>
+
+                          {/* Hero Carbon Display Section */}
+                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/40 border border-slate-100/60 p-4 rounded-2xl shadow-sm">
+                            <div className="flex flex-col">
+                              <span className={`text-3xl md:text-4xl font-black font-mono tracking-tight ${theme.text}`}>
+                                {log.calculated_kg.toFixed(1)} <span className="text-sm md:text-base font-bold text-slate-500 font-sans">kg CO₂e</span>
+                              </span>
+                              <span className="text-[10px] text-slate-400 font-mono uppercase tracking-wider font-bold">Absolute Footprint</span>
+                            </div>
+                            
+                            {/* Score Gauge out of 10 */}
+                            <div className="flex items-center gap-3 bg-white/60 p-2.5 rounded-xl border border-slate-200/20">
+                              <div className="relative w-10 h-10 flex items-center justify-center shrink-0">
+                                <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                                  <circle cx="18" cy="18" r="16" fill="none" stroke="rgba(0,0,0,0.03)" strokeWidth="2.5" />
+                                  <circle 
+                                    cx="18" 
+                                    cy="18" 
+                                    r="16" 
+                                    fill="none" 
+                                    stroke={theme.accentLight} 
+                                    strokeWidth="3.5" 
+                                    strokeDasharray="100" 
+                                    strokeDashoffset={100 - scorePercentage}
+                                    strokeLinecap="round"
+                                    className="transition-all duration-1000 ease-out"
+                                  />
+                                </svg>
+                                <span className="absolute text-[12px] font-black text-slate-800 font-mono">
+                                  {scoreOutOf10.toFixed(0)}
+                                </span>
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="text-[12px] font-black text-slate-700 leading-none">
+                                  {scoreOutOf10.toFixed(1)} <span className="text-[10px] text-slate-400 font-normal">/ 10</span>
+                                </span>
+                                <span className="text-[9px] text-slate-500 font-mono uppercase tracking-wide mt-0.5">Efficiency Score</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* User raw text input */}
+                          <p className="text-[13.5px] text-slate-600 leading-relaxed bg-slate-50/50 px-4 py-2.5 rounded-xl border border-slate-200/30 font-mono italic">
+                            “{log.raw_text}”
+                          </p>
+
+                          {/* AI Warm Narrative */}
+                          {log.narrative && (
+                            <div className="bg-white/45 border border-slate-100 rounded-2xl p-4 shadow-sm">
+                              <div className="flex items-center gap-1.5 mb-2">
+                                <Sparkles className={`w-3.5 h-3.5 ${theme.text}`} />
+                                <span className={`text-[11.5px] font-bold uppercase tracking-widest font-mono ${theme.text}`}>AI Footprint Analysis</span>
+                              </div>
+                              <p className="text-[14.5px] md:text-[15.5px] text-slate-700 leading-relaxed font-medium">
+                                {log.narrative}
+                              </p>
+                            </div>
+                          )}
+
+                          {/* Expandable Breakdown Layer */}
+                          {log.causes && log.causes.length > 0 && (
+                            <div className="border border-slate-100 rounded-2xl overflow-hidden bg-white/20">
+                              <button
+                                onClick={() => toggleBreakdown(log.log_id)}
+                                className="w-full flex items-center justify-between p-3 hover:bg-white/30 transition-colors"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <Layers className={`w-3.5 h-3.5 ${theme.text}`} />
+                                  <span className="text-[12px] font-bold text-slate-700 font-mono uppercase tracking-wider">
+                                    Emissions Trace Breakdown
+                                  </span>
+                                  <span className="text-[10.5px] font-bold bg-slate-100 px-1.5 py-0.5 rounded-full text-slate-500 font-mono">
+                                    {log.causes.length} sources
+                                  </span>
+                                </div>
+                                <motion.div
+                                  animate={{ rotate: expandedBreakdowns[log.log_id] ? 180 : 0 }}
+                                  transition={{ duration: 0.2 }}
+                                >
+                                  <ChevronRight className="w-4 h-4 text-slate-400" />
+                                </motion.div>
+                              </button>
+
+                              <AnimatePresence initial={false}>
+                                {expandedBreakdowns[log.log_id] && (
+                                  <motion.div
+                                    initial={{ height: 0 }}
+                                    animate={{ height: 'auto' }}
+                                    exit={{ height: 0 }}
+                                    transition={{ duration: 0.2, ease: 'easeInOut' }}
+                                    className="overflow-hidden border-t border-slate-100"
+                                  >
+                                    <div className="p-3.5 space-y-3 bg-white/40">
+                                      {log.causes.map((cause, idx) => {
+                                        const totalCausesKg = log.causes.reduce((sum, c) => sum + (c.kg || 0), 0)
+                                        const proportion = totalCausesKg > 0 ? ((cause.kg || 0) / totalCausesKg) * 100 : 0;
+                                        
+                                        return (
+                                          <div key={idx} className="space-y-1.5">
+                                            <div className="flex items-start justify-between gap-3 text-[12.5px]">
+                                              <div className="flex-1 min-w-0">
+                                                {cause.label && (
+                                                  <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400 font-mono block mb-0.5">
+                                                    {cause.label}
+                                                  </span>
+                                                )}
+                                                <span className="text-[12.5px] text-slate-700 font-medium leading-snug block">
+                                                  {cause.activity}
+                                                </span>
+                                              </div>
+                                              <div className="flex items-center gap-1.5 shrink-0">
+                                                <span className="font-mono font-bold text-slate-800">{cause.kg.toFixed(1)} kg</span>
+                                                <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full font-mono ${
+                                                  cause.impact === 'high' ? 'bg-rose-100 text-rose-700'
+                                                  : cause.impact === 'medium' ? 'bg-amber-100 text-amber-700'
+                                                  : 'bg-emerald-100 text-emerald-755'
+                                                }`}>
+                                                  {cause.impact}
+                                                </span>
+                                              </div>
+                                            </div>
+                                            {/* Proportional visual bar */}
+                                            <div className="h-1 w-full bg-slate-200/50 rounded-full overflow-hidden">
+                                              <div 
+                                                className={`h-full rounded-full ${
+                                                  cause.impact === 'high' ? 'bg-rose-400'
+                                                  : cause.impact === 'medium' ? 'bg-amber-400'
+                                                  : 'bg-emerald-400'
+                                                }`}
+                                                style={{ width: `${proportion}%` }}
+                                              />
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
+                          )}
+
+                          {/* Eco Recommendations with Pledge Loop */}
+                          {log.suggestions && log.suggestions.length > 0 && (
+                            <div className="space-y-3">
+                              <div className="flex items-center gap-2">
+                                <Trees className={`w-4.5 h-4.5 ${theme.text}`} />
+                                <span className={`text-[13px] font-bold uppercase tracking-widest font-mono ${theme.text}`}>Eco Recommendations</span>
+                              </div>
+                              
+                              <div className="flex flex-col gap-3">
+                                {log.suggestions.map((s, idx) => {
+                                  const title = typeof s === 'string' ? s : (s.title || '')
+                                  const detail = typeof s === 'object' ? (s.detail || '') : ''
+                                  const steps = typeof s === 'object' && Array.isArray(s.steps) ? s.steps : []
+                                  
+                                  const pledgeKey = `${log.log_id}-${idx}`
+                                  const isPledged = !!pledges[pledgeKey]
+
+                                  return (
+                                    <div 
+                                      key={idx} 
+                                      className={`border rounded-2xl p-4 transition-all duration-300 relative overflow-hidden ${
+                                        isPledged 
+                                          ? 'bg-emerald-500/[0.04] border-emerald-500/30 shadow-md shadow-emerald-500/2'
+                                          : 'bg-white/40 border-slate-100 hover:border-slate-200'
+                                      }`}
+                                    >
+                                      {isPledged && (
+                                        <div className="absolute top-0 bottom-0 left-0 w-1 bg-emerald-500" />
+                                      )}
+
+                                      <div className="flex items-start justify-between gap-4">
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex items-center gap-2.5 mb-1.5">
+                                            <span className={`w-6 h-6 rounded-full text-[12px] font-black flex items-center justify-center shrink-0 ${
+                                              isPledged ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-700'
+                                            }`}>
+                                              {idx + 1}
+                                            </span>
+                                            <span className={`text-[15.5px] md:text-[16px] font-bold leading-snug ${isPledged ? 'text-emerald-900' : 'text-slate-800'}`}>
+                                              {title}
+                                            </span>
+                                          </div>
+                                          {detail && (
+                                            <p className="text-[13.5px] md:text-[14px] text-slate-600 leading-relaxed mb-2 pl-8 font-medium">
+                                              {detail}
+                                            </p>
+                                          )}
+                                          {steps.length > 0 && (
+                                            <div className="flex flex-col gap-1.5 pl-8 mt-2.5">
+                                              {steps.map((step, si) => (
+                                                <div key={si} className="flex items-start gap-2.5 text-[12.5px] md:text-[13px] text-slate-700 bg-white/50 border border-slate-200/30 px-3 py-1.5 rounded-xl">
+                                                  <span className={`font-black mt-0.5 shrink-0 ${isPledged ? 'text-emerald-500' : 'text-slate-400'}`}>›</span>
+                                                  <span className="leading-snug">{step}</span>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          )}
+                                        </div>
+
+                                        <button
+                                          onClick={() => handlePledgeToggle(log.log_id, idx)}
+                                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold font-mono transition-all duration-300 shrink-0 ${
+                                            isPledged 
+                                              ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/10'
+                                              : 'bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900'
+                                          }`}
+                                        >
+                                          {isPledged ? (
+                                            <>
+                                              <CheckCircle2 className="w-3.5 h-3.5" />
+                                              <span>Committed</span>
+                                            </>
+                                          ) : (
+                                            <>
+                                              <Plus className="w-3.5 h-3.5" />
+                                              <span>Pledge</span>
+                                            </>
+                                          )}
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Motivational message */}
+                          {(log.motivation || log.eco_advice) && (
+                            <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${theme.motivationBg} px-5 py-4.5 mt-2.5 border border-white/5`}>
+                              <div className="absolute top-1 right-4 text-white/5 text-8xl font-serif leading-none select-none pointer-events-none">"</div>
+                              <div className="flex items-start gap-3.5 relative z-10">
+                                <Leaf className="w-4.5 h-4.5 text-emerald-400 shrink-0 mt-0.5" />
+                                <p className="text-[14.5px] md:text-[15.5px] text-slate-100 leading-relaxed font-medium italic">
+                                  {log.motivation || log.eco_advice}
+                                </p>
+                              </div>
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </motion.div>
-                  ))}
+                      </motion.div>
+                    )
+                  })}
                 </AnimatePresence>
               </div>
             )}
           </div>
         </section>
 
-        {/* Desktop Right Area: SVG Analytics & SQL Schema Manual */}
-        <section className="lg:col-span-3 flex flex-col gap-6">
-          
-          {/* SVG Category Emission breakdown Chart */}
-          <div className="glass-panel rounded-3xl p-5 border border-green-100/50">
-            <h4 className="text-xs font-bold text-green-800 uppercase tracking-wider font-mono border-b border-green-100/40 pb-2 mb-4">
-              EMISSION BREAKDOWN
-            </h4>
 
-            {logsCount === 0 ? (
-              <div className="py-8 text-center text-xs text-slate-400 font-mono">
-                Awaiting carbon entry data...
-              </div>
-            ) : (
-              <div className="space-y-5">
-                {/* Category Bars progress */}
-                <div className="space-y-3">
-                  {categories.map((cat) => {
-                    const count = categoryCounts[cat] || 0
-                    const emissions = categoryEmissions[cat] || 0
-                    const percent = logsCount > 0 ? (count / logsCount) * 100 : 0
-                    const emissionPercent = totalKg > 0 ? (emissions / totalKg) * 100 : 0
-
-                    if (count === 0) return null
-
-                    return (
-                      <div key={cat} className="space-y-1">
-                        <div className="flex justify-between items-center text-xs">
-                          <span className="text-slate-700 font-bold capitalize flex items-center gap-1.5">
-                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: categoryColors[cat] }} />
-                            {cat}
-                          </span>
-                          <span className="text-slate-500 font-mono text-[11px] font-bold">
-                            {emissions.toFixed(1)} kg ({Math.round(emissionPercent)}%)
-                          </span>
-                        </div>
-                        <div className="h-1.5 w-full bg-slate-200/60 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full rounded-full transition-all duration-1000"
-                            style={{ 
-                              width: `${Math.max(5, emissionPercent)}%`, 
-                              backgroundColor: categoryColors[cat] 
-                            }}
-                          />
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-[10px] text-slate-500 leading-normal font-mono">
-                  <div className="font-bold text-green-800 mb-1 flex items-center gap-1">
-                    <Info className="w-3.5 h-3.5 text-green-600" />
-                    EMISSION METRIC
-                  </div>
-                  Our calculation scales transportation and meat consumption as primary emission catalysts.
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Dev Settings Panel / DB Helper Info */}
-          <div className="glass-panel rounded-3xl p-5 border border-green-100/50">
-            <button
-              onClick={() => setShowDevSettings(!showDevSettings)}
-              className="w-full flex justify-between items-center text-xs font-bold text-green-800 uppercase tracking-wider font-mono cursor-pointer"
-            >
-              <span className="flex items-center gap-1.5">
-                <Settings className="w-4 h-4 text-green-600" />
-                DATABASE & API SETUP
-              </span>
-              <ChevronRight className={`w-4 h-4 transition-transform ${showDevSettings ? 'rotate-90' : ''}`} />
-            </button>
-
-            <AnimatePresence>
-              {showDevSettings && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="mt-4 pt-4 border-t border-slate-200 space-y-4 text-xs font-mono text-slate-500 overflow-hidden"
-                >
-                  <p className="leading-snug text-[11px]">
-                    To connect to a live database, paste this SQL in the Supabase SQL editor:
-                  </p>
-
-                  <div className="relative">
-                    <pre className="p-3 rounded-lg bg-slate-100 border border-slate-200 text-[10px] text-slate-700 overflow-x-auto max-h-48 whitespace-pre leading-normal">
-{`-- 1. Create Profiles
-create table profiles (
-  id uuid references auth.users on delete cascade primary key,
-  display_name text not null,
-  eco_id text unique not null,
-  badge_status text default 'Seedling',
-  created_at timestamp with time zone default now() not null
-);
-
--- 2. Create Journal Logs
-create table journal_logs (
-  log_id uuid default gen_random_uuid() primary key,
-  user_id uuid references auth.users on delete cascade not null,
-  raw_text text not null,
-  calculated_kg numeric(10, 2) not null,
-  efficiency_score numeric(5, 2) not null,
-  category text not null,
-  suggestions jsonb,
-  created_at timestamp with time zone default now() not null
-);
-
--- 3. Enable RLS
-alter table profiles enable row level security;
-alter table journal_logs enable row level security;
-
--- 4. Enable Policies
-create policy "Users own profile" on profiles for all using (auth.uid() = id);
-create policy "Users own logs" on journal_logs for all using (auth.uid() = user_id);
-
--- 5. Auto-Create Profiles Trigger (Recommended)
--- Resolves RLS violations when email verification is enabled
-create or replace function public.handle_new_user()
-returns trigger as $$
-begin
-  insert into public.profiles (id, display_name, eco_id, badge_status)
-  values (
-    new.id,
-    coalesce(new.raw_user_meta_data->>'display_name', split_part(new.email, '@', 1)),
-    coalesce(new.raw_user_meta_data->>'eco_id', split_part(new.email, '@', 1)),
-    'Seedling'
-  );
-  return new;
-end;
-$$ language plpgsql security definer;
-
-create or replace trigger on_auth_user_created
-  after insert on auth.users
-  for each row execute procedure public.handle_new_user();
-
--- 6. Create App Settings Table for LLM Configuration
-create table if not exists app_settings (
-  id text primary key default 'global',
-  llm_provider text default 'local',
-  llm_api_key text default '',
-  llm_base_url text default '',
-  llm_model text default 'llama-3.1-8b-instant',
-  llm_system_prompt text default '',
-  updated_at timestamp with time zone default now() not null
-);
-
--- Allow public read access (so anyone on the web can read the LLM config)
-alter table app_settings disable row level security;`}
-                    </pre>
-                  </div>
-
-                  <p className="leading-snug text-[11px]">
-                    Ensure your <code className="text-green-700 font-semibold font-mono">.env</code> file has VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY configured.
-                  </p>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        </section>
 
         {/* Carbon Sync Facts & Importance Section */}
         <section className="col-span-1 lg:col-span-12 mt-8 border-t border-green-100/50 pt-8">
@@ -1640,12 +2375,12 @@ alter table app_settings disable row level security;`}
                       </h4>
                     </div>
                     <p style={{ transform: 'translateZ(12px)' }} className="text-xs md:text-sm text-slate-600 leading-relaxed font-mono">
-                      Average surface temperatures have already risen by 1.1°C since industrial carbon expansion.
+                      Average surface temperatures have already risen by 1.1Â°C since industrial carbon expansion.
                     </p>
                   </div>
                   <div style={{ transform: 'translateZ(18px)' }} className="p-3 bg-green-500/5 border border-green-500/10 rounded-xl text-[11px] md:text-xs text-green-700 font-semibold leading-normal font-mono">
                     <span className="font-bold block text-[9px] md:text-[10px] uppercase tracking-wider mb-0.5 text-green-800">Importance:</span>
-                    Keeping warming below the 1.5°C threshold requires a global carbon emission cut of 45% by 2030.
+                    Keeping warming below the 1.5Â°C threshold requires a global carbon emission cut of 45% by 2030.
                   </div>
                 </div>
               </div>
@@ -1700,9 +2435,39 @@ alter table app_settings disable row level security;`}
                     <span className="text-2xl font-black text-slate-800 block"><AnimatedCounter value={averageFootprint} /></span>
                     <span className="text-[9px] text-slate-500 uppercase font-mono tracking-wider font-bold">Avg kg CO2</span>
                   </div>
-                  <div className="text-center">
+                  <div className="text-center flex flex-col items-center">
                     <span className="text-2xl font-black text-green-600 block"><AnimatedCounter value={averageEfficiency} />%</span>
-                    <span className="text-[9px] text-slate-500 uppercase font-mono tracking-wider font-bold">Ledger Efficiency</span>
+                    <div className="flex items-center gap-1.5 justify-center relative group">
+                      <span className="text-[9px] text-slate-500 uppercase font-mono tracking-wider font-bold">10-Day Rolling Efficiency</span>
+                      <Info className="w-3 h-3 text-slate-400 hover:text-emerald-500 transition-colors cursor-help shrink-0" />
+                      
+                      {/* Tooltip Content */}
+                      <div className="absolute left-1/2 transform -translate-x-1/2 bottom-6 w-72 bg-slate-900/95 backdrop-blur border border-slate-700 text-white rounded-2xl p-4 shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 pointer-events-none text-xs leading-relaxed text-left">
+                        <div className="font-bold text-emerald-400 mb-1.5 font-mono tracking-wider uppercase text-[10px]">
+                          Calculation Strategy
+                        </div>
+                        <div className="space-y-1.5 text-slate-300 text-[11px]">
+                          <p>
+                            <strong className="text-white">1. Daily Aggregation:</strong> Multiple logs in a single day are averaged to form one daily entry.
+                          </p>
+                          <p>
+                            <strong className="text-white">2. 10-Day Window:</strong> Calculation operates on a sliding window of the 10 most recent active days.
+                          </p>
+                          <p>
+                            <strong className="text-white">3. Average Efficiency:</strong> The rolling mean of those daily scores (scale 1.0 to 10.0) is converted to a percentage.
+                          </p>
+                          <p>
+                            <strong className="text-white">4. Rank Brackets:</strong>
+                          </p>
+                          <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 mt-1 pt-1 border-t border-slate-800 text-[10px] font-mono">
+                            <span className="text-emerald-400">9.0+ : Eco Vanguard</span>
+                            <span className="text-teal-400">7.0+ : Earth Guardian</span>
+                            <span className="text-amber-400">4.0+ : Seeker</span>
+                            <span className="text-rose-400">1.0+ : Beginner</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -1836,6 +2601,24 @@ alter table app_settings disable row level security;`}
                   </div>
                 </div>
               )}
+              {submitError && (
+                <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 font-mono text-[11px] text-rose-800">
+                  <div className="flex items-start gap-2.5">
+                    <ShieldAlert className="w-5 h-5 text-rose-600 shrink-0 mt-0.5 animate-pulse" />
+                    <div>
+                      <div className="font-bold text-rose-950 uppercase tracking-wide mb-1">
+                        SYNCHRONIZATION FAILURE
+                      </div>
+                      <div className="leading-relaxed">
+                        {submitError}
+                      </div>
+                      <div className="mt-2 text-[10px] text-rose-600/70 border-t border-rose-200/50 pt-1.5">
+                        Please verify your LLM provider API credentials in settings. Local fallback is disabled.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </motion.div>
           </>
         )}
@@ -1843,182 +2626,316 @@ alter table app_settings disable row level security;`}
 
       {/* Centered Large Admin Config Modal */}
       <AnimatePresence>
-        {adminConfig && showAdminPanel && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-            {/* Backdrop closer */}
+        {adminConfig && user?.isAdmin && showAdminPanel && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-md">
             <div className="absolute inset-0 cursor-pointer" onClick={() => setShowAdminPanel(false)} />
-            
-            {/* Modal Card */}
+
             <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              initial={{ opacity: 0, scale: 0.92, y: 24 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              transition={{ type: 'spring', damping: 25, stiffness: 180 }}
-              className="relative max-w-2xl w-full glass-panel rounded-3xl border border-green-200/60 p-6 md:p-8 shadow-2xl overflow-hidden bg-white/95 text-slate-800 flex flex-col max-h-[90vh] z-10 font-sans"
+              exit={{ opacity: 0, scale: 0.92, y: 24 }}
+              transition={{ type: 'spring', damping: 26, stiffness: 200 }}
+              className="relative max-w-2xl w-full bg-white rounded-3xl border border-slate-200 shadow-2xl flex flex-col max-h-[92vh] z-10 overflow-hidden"
             >
-              <div className="absolute top-0 right-0 w-32 h-32 bg-green-500/5 rounded-full filter blur-3xl pointer-events-none" />
-              
-              {/* Modal Header */}
-              <div className="flex items-center justify-between border-b border-green-200/30 pb-4 mb-6">
-                <div className="flex items-center gap-2">
-                  <span className="p-2 bg-green-500/10 rounded-xl text-green-700">
-                    <Settings className="w-5 h-5 animate-spin-slow" />
-                  </span>
-                  <div className="text-left">
-                    <h2 className="text-xl font-bold tracking-tight text-slate-800 font-title flex items-center gap-2">
-                      AETHER SYNC MATRIX
-                      <span className="text-xs font-mono px-2 py-0.5 rounded bg-green-600/10 text-green-700 border border-green-200/50 font-bold">
-                        ADMIN CONTROLS
-                      </span>
-                    </h2>
-                    <p className="text-xs text-slate-500 font-mono mt-0.5">Global configuration and linguistic gateway matrix</p>
+              {/* Gradient header bar */}
+              <div className="bg-gradient-to-r from-slate-900 via-emerald-950 to-slate-900 px-6 py-5 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-emerald-500/20 rounded-xl border border-emerald-500/30">
+                    <Sparkles className="w-5 h-5 text-emerald-400" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-bold text-white tracking-tight">AI Engine Configuration</h2>
+                    <p className="text-[11px] text-emerald-400/80 font-mono mt-0.5">Connect your LLM source Â· Set API key Â· Pick model</p>
                   </div>
                 </div>
-                <button 
+                <button
                   onClick={() => setShowAdminPanel(false)}
-                  className="p-1.5 hover:bg-slate-100 rounded-xl border border-slate-200 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer text-xs font-bold font-mono px-3"
+                  className="p-2 hover:bg-white/10 rounded-xl text-slate-400 hover:text-white transition-colors cursor-pointer"
                 >
-                  Close
+                  <X className="w-4 h-4" />
                 </button>
               </div>
 
-              {/* Modal Content Scrollable area */}
-              <div className="flex-1 overflow-y-auto pr-2 space-y-6 max-h-[60vh] custom-scrollbar">
-                <form onSubmit={handleSaveSettings} className="space-y-6">
-                  
-                  {/* LLM Connect Configs */}
-                  <div className="space-y-4 text-left">
-                    <h3 className="text-xs font-bold text-green-800 uppercase tracking-wider font-mono border-b border-green-100/40 pb-1.5 flex items-center gap-1.5">
-                      <Terminal className="w-4 h-4 text-green-600" />
-                      Linguistic LLM Gateways
-                    </h3>
+              {/* Scrollable body */}
+              <div className="flex-1 overflow-y-auto">
+                <form onSubmit={handleSaveSettings} className="p-6 space-y-6">
 
-                    {/* LLM Provider */}
-                    <div className="space-y-1">
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase font-mono">LLM Provider</label>
-                      <select
-                        value={llmProvider}
-                        onChange={(e) => handleProviderChange(e.target.value)}
-                        className="w-full p-2.5 rounded-xl bg-white border border-green-200/70 text-xs font-mono focus:outline-none focus:border-green-500 shadow-sm"
-                      >
-                        <option value="local">Local Regex Fallback</option>
-                        <option value="groq">Groq AI Cloud API</option>
-                        <option value="openai">OpenAI ChatGPT API</option>
-                        <option value="gemini">Google Gemini API</option>
-                        <option value="openrouter">OpenRouter API</option>
-                        <option value="claude">Anthropic Claude API</option>
-                        <option value="ollama">Ollama (Local LLM)</option>
-                      </select>
-                    </div>
-
-                    {llmProvider !== 'local' && (
-                      <>
-                        {/* API Key */}
-                        <div className="space-y-1">
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase font-mono">
-                            {llmProvider === 'ollama' ? 'Ollama Token / Config (Optional)' : 'API Key'}
-                          </label>
-                          <input
-                            type={llmProvider === 'ollama' ? 'text' : 'password'}
-                            placeholder={
-                              llmProvider === 'ollama' ? 'Leave blank for default local host' :
-                              llmProvider === 'gemini' ? 'AIzaSy...' :
-                              llmProvider === 'openrouter' ? 'sk-or-v1-...' :
-                              llmProvider === 'claude' ? 'sk-ant-...' : 'sk-...'
-                            }
-                            value={llmApiKey}
-                            onChange={(e) => setLlmApiKey(e.target.value)}
-                            className="w-full p-2.5 rounded-xl bg-white border border-green-200/70 text-xs font-mono focus:outline-none focus:border-green-500 shadow-sm"
-                          />
-                        </div>
-
-                        {/* Base URL Override */}
-                        <div className="space-y-1">
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase font-mono">
-                            API Base URL Override (Optional)
-                          </label>
-                          <input
-                            type="text"
-                            placeholder={
-                              llmProvider === 'ollama' ? 'http://localhost:11434/api/chat' :
-                              llmProvider === 'groq' ? 'https://api.groq.com/openai/v1/chat/completions' :
-                              llmProvider === 'openai' ? 'https://api.openai.com/v1/chat/completions' :
-                              llmProvider === 'gemini' ? 'https://generativelanguage.googleapis.com/v1beta/models' :
-                              'e.g. http://localhost:8080/v1'
-                            }
-                            value={llmBaseUrl}
-                            onChange={(e) => setLlmBaseUrl(e.target.value)}
-                            className="w-full p-2.5 rounded-xl bg-white border border-green-200/70 text-xs font-mono focus:outline-none focus:border-green-500 shadow-sm"
-                          />
-                          <p className="text-[9px] text-slate-400 leading-snug font-mono mt-1">
-                            * Custom URL override. Leave empty to use official defaults.
-                          </p>
-                        </div>
-
-                        {/* Model Name Dropdown */}
-                        <div className="space-y-1">
-                          <div className="flex justify-between items-center">
-                            <label className="block text-[10px] font-bold text-slate-500 uppercase font-mono">Model Name</label>
-                            {llmProvider !== 'local' && (
-                              <button
-                                type="button"
-                                onClick={() => fetchProviderModels(llmProvider, llmApiKey, llmBaseUrl)}
-                                disabled={loadingModels}
-                                className="text-[9px] text-green-700 hover:text-green-800 font-mono font-bold flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                                title="Fetch available models from API"
-                              >
-                                <RefreshCw className={`w-2.5 h-2.5 ${loadingModels ? 'animate-spin' : ''}`} />
-                                Sync Live
-                              </button>
-                            )}
-                          </div>
-                          <select
-                            value={llmModel}
-                            onChange={(e) => setLlmModel(e.target.value)}
-                            className="w-full p-2.5 rounded-xl bg-white border border-green-200/70 text-xs font-mono focus:outline-none focus:border-green-500 shadow-sm"
+                  {/* â”€â”€ Provider cards â”€â”€ */}
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest font-mono mb-3">
+                      Select AI Provider
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { id: 'openrouter', name: 'OpenRouter', sub: 'Multi-model gateway', color: 'violet', free: true },
+                        { id: 'groq',       name: 'Groq',       sub: 'Ultra-fast inference', color: 'orange', free: true },
+                        { id: 'openai',     name: 'OpenAI',     sub: 'GPT-4o Â· o1 series',  color: 'green',  free: false },
+                        { id: 'gemini',     name: 'Gemini',     sub: 'Google DeepMind',      color: 'blue',   free: true },
+                        { id: 'claude',     name: 'Claude',     sub: 'Anthropic Â· Sonnet',   color: 'amber',  free: false },
+                        { id: 'ollama',     name: 'Ollama',     sub: 'Run locally Â· Free',   color: 'slate',  free: true },
+                      ].map(p => {
+                        const isActive = llmProvider === p.id
+                        const colorMap = {
+                          violet: isActive ? 'border-violet-500 bg-violet-50 shadow-violet-100' : 'border-slate-200 hover:border-violet-300',
+                          orange: isActive ? 'border-orange-500 bg-orange-50 shadow-orange-100' : 'border-slate-200 hover:border-orange-300',
+                          green:  isActive ? 'border-green-500  bg-green-50  shadow-green-100'  : 'border-slate-200 hover:border-green-300',
+                          blue:   isActive ? 'border-blue-500   bg-blue-50   shadow-blue-100'   : 'border-slate-200 hover:border-blue-300',
+                          amber:  isActive ? 'border-amber-500  bg-amber-50  shadow-amber-100'  : 'border-slate-200 hover:border-amber-300',
+                          slate:  isActive ? 'border-slate-600  bg-slate-50  shadow-slate-100'  : 'border-slate-200 hover:border-slate-400',
+                        }
+                        const dotMap = {
+                          violet:'bg-violet-500', orange:'bg-orange-500', green:'bg-green-500',
+                          blue:'bg-blue-500', amber:'bg-amber-500', slate:'bg-slate-500'
+                        }
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => handleProviderChange(p.id)}
+                            className={`relative text-left p-3 rounded-2xl border-2 transition-all duration-200 shadow-sm cursor-pointer ${colorMap[p.color]}`}
                           >
-                            {(dynamicModels || []).map(m => (
-                              <option key={m.value} value={m.value}>{m.label}</option>
-                            ))}
-                          </select>
-                        </div>
-
-                        {/* System Prompt */}
-                        <div className="space-y-1">
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase font-mono">System Prompt</label>
-                          <textarea
-                            rows="4"
-                            value={llmSystemPrompt}
-                            onChange={(e) => setLlmSystemPrompt(e.target.value)}
-                            className="w-full p-2.5 rounded-xl bg-white border border-green-200/70 text-xs font-mono focus:outline-none focus:border-green-500 resize-none leading-relaxed shadow-sm"
-                          />
-                        </div>
-                      </>
-                    )}
+                            {isActive && (
+                              <div className="absolute top-2 right-2">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                              </div>
+                            )}
+                            <div className={`w-2 h-2 rounded-full ${dotMap[p.color]} mb-2`} />
+                            <div className="text-[12px] font-bold text-slate-800">{p.name}</div>
+                            <div className="text-[10px] text-slate-500 leading-tight mt-0.5">{p.sub}</div>
+                            {p.free && (
+                              <span className="inline-block mt-1.5 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-mono">Free tier</span>
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
                   </div>
 
-                  {/* Footer Action Bar */}
-                  <div className="pt-6 border-t border-slate-200/60 flex items-center justify-between mt-4">
-                    <div>
-                      {settingsStatus && (
-                        <p className="text-xs text-green-700 font-mono animate-pulse">{settingsStatus}</p>
+                  {/* â”€â”€ API Key â”€â”€ */}
+                  {llmProvider !== 'ollama' && (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest font-mono">
+                          API Key
+                        </label>
+                        {llmProvider === 'openrouter' && (
+                          <a
+                            href="https://openrouter.ai/keys"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[10px] text-violet-600 hover:text-violet-700 font-mono font-bold underline underline-offset-2"
+                          >
+                            Get free key â†—
+                          </a>
+                        )}
+                        {llmProvider === 'groq' && (
+                          <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer"
+                            className="text-[10px] text-orange-600 hover:text-orange-700 font-mono font-bold underline underline-offset-2">
+                            Get free key â†—
+                          </a>
+                        )}
+                        {llmProvider === 'gemini' && (
+                          <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer"
+                            className="text-[10px] text-blue-600 hover:text-blue-700 font-mono font-bold underline underline-offset-2">
+                            Get free key â†—
+                          </a>
+                        )}
+                      </div>
+                      <div className="relative">
+                        <input
+                          id="llm-api-key-input"
+                          type={showApiKey ? 'text' : 'password'}
+                          placeholder={
+                            llmProvider === 'gemini'     ? 'AIzaSy...' :
+                            llmProvider === 'openrouter' ? 'sk-or-v1-...' :
+                            llmProvider === 'claude'     ? 'sk-ant-api-...' :
+                            llmProvider === 'groq'       ? 'gsk_...' :
+                            'sk-...'
+                          }
+                          value={llmApiKey}
+                          onChange={(e) => setLlmApiKey(e.target.value)}
+                          className="w-full p-3 pr-28 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-all placeholder-slate-400"
+                        />
+                        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setShowApiKey(v => !v)}
+                            className="px-2 py-1 text-[10px] font-mono font-bold text-slate-500 hover:text-slate-800 bg-white border border-slate-200 rounded-lg transition-colors cursor-pointer"
+                          >
+                            {showApiKey ? 'Hide' : 'Show'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (!llmApiKey) return
+                              setTestingKey(true)
+                              setKeyTestResult(null)
+                              try {
+                                let testUrl = ''
+                                let testHeaders = { 'Content-Type': 'application/json' }
+                                let testBody = {}
+                                if (llmProvider === 'openrouter') {
+                                  testUrl = 'https://openrouter.ai/api/v1/chat/completions'
+                                  testHeaders['Authorization'] = `Bearer ${llmApiKey}`
+                                  testHeaders['HTTP-Referer'] = 'http://localhost:5173'
+                                  testHeaders['X-Title'] = 'Aether Carbon'
+                                  testBody = { model: llmModel || 'nvidia/nemotron-3-nano-30b-a3b:free', messages: [{ role: 'user', content: 'ping' }], max_tokens: 5 }
+                                } else if (llmProvider === 'groq') {
+                                  testUrl = 'https://api.groq.com/openai/v1/chat/completions'
+                                  testHeaders['Authorization'] = `Bearer ${llmApiKey}`
+                                  testBody = { model: llmModel || 'llama-3.1-8b-instant', messages: [{ role: 'user', content: 'ping' }], max_tokens: 5 }
+                                } else if (llmProvider === 'openai') {
+                                  testUrl = 'https://api.openai.com/v1/chat/completions'
+                                  testHeaders['Authorization'] = `Bearer ${llmApiKey}`
+                                  testBody = { model: llmModel || 'gpt-4o-mini', messages: [{ role: 'user', content: 'ping' }], max_tokens: 5 }
+                                } else if (llmProvider === 'gemini') {
+                                  testUrl = `https://generativelanguage.googleapis.com/v1beta/models/${llmModel || 'gemini-2.0-flash'}:generateContent?key=${llmApiKey}`
+                                  testBody = { contents: [{ parts: [{ text: 'ping' }] }] }
+                                } else if (llmProvider === 'claude') {
+                                  testUrl = 'https://api.anthropic.com/v1/messages'
+                                  testHeaders['x-api-key'] = llmApiKey
+                                  testHeaders['anthropic-version'] = '2023-06-01'
+                                  testBody = { model: llmModel || 'claude-3-haiku-20240307', max_tokens: 5, messages: [{ role: 'user', content: 'ping' }] }
+                                }
+                                const res = await fetch(testUrl, { method: 'POST', headers: testHeaders, body: JSON.stringify(testBody), signal: AbortSignal.timeout(10000) })
+                                setKeyTestResult(res.ok || res.status === 400 ? 'ok' : 'fail')
+                              } catch {
+                                setKeyTestResult('fail')
+                              } finally {
+                                setTestingKey(false)
+                              }
+                            }}
+                            disabled={!llmApiKey || testingKey}
+                            className="px-2 py-1 text-[10px] font-mono font-bold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg transition-colors cursor-pointer disabled:opacity-40 flex items-center gap-1"
+                          >
+                            {testingKey ? <RefreshCw className="w-2.5 h-2.5 animate-spin" /> : <Zap className="w-2.5 h-2.5" />}
+                            Test
+                          </button>
+                        </div>
+                      </div>
+                      {keyTestResult === 'ok' && (
+                        <p className="text-[11px] text-emerald-600 font-mono font-bold flex items-center gap-1.5">
+                          <CheckCircle2 className="w-3.5 h-3.5" /> API key verified âœ“
+                        </p>
+                      )}
+                      {keyTestResult === 'fail' && (
+                        <p className="text-[11px] text-rose-600 font-mono font-bold flex items-center gap-1.5">
+                          <ShieldAlert className="w-3.5 h-3.5" /> Key invalid or unreachable
+                        </p>
                       )}
                     </div>
-                    <div className="flex gap-3">
+                  )}
+
+                  {/* â”€â”€ Ollama Base URL â”€â”€ */}
+                  {llmProvider === 'ollama' && (
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest font-mono">
+                        Ollama Server URL
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="http://localhost:11434"
+                        value={llmBaseUrl}
+                        onChange={(e) => setLlmBaseUrl(e.target.value)}
+                        className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono focus:outline-none focus:border-emerald-500"
+                      />
+                      <p className="text-[10px] text-slate-400 font-mono">Default: http://localhost:11434 â€” make sure Ollama is running</p>
+                    </div>
+                  )}
+
+                  {/* â”€â”€ Model selector â”€â”€ */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest font-mono">Model</label>
+                      <button
+                        type="button"
+                        onClick={() => fetchProviderModels(llmProvider, llmApiKey, llmBaseUrl)}
+                        disabled={loadingModels}
+                        className="text-[10px] text-emerald-700 hover:text-emerald-800 font-mono font-bold flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                      >
+                        <RefreshCw className={`w-3 h-3 ${loadingModels ? 'animate-spin' : ''}`} />
+                        {loadingModels ? 'Fetching...' : 'Fetch live models'}
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <select
+                        value={llmModel}
+                        onChange={(e) => setLlmModel(e.target.value)}
+                        className="w-full p-3 pr-10 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono focus:outline-none focus:border-emerald-500 appearance-none cursor-pointer"
+                      >
+                        {(dynamicModels || []).map(m => (
+                          <option key={m.value} value={m.value}>{m.label}</option>
+                        ))}
+                      </select>
+                      <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 rotate-90 pointer-events-none" />
+                    </div>
+                    <p className="text-[10px] text-slate-400 font-mono">Current: <span className="text-slate-600 font-bold">{llmModel}</span></p>
+                  </div>
+
+                  {/* â”€â”€ Base URL override (non-ollama) â”€â”€ */}
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest font-mono">
+                      Custom API Endpoint <span className="normal-case text-slate-400 font-normal">(optional override)</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder={
+                        llmProvider === 'groq'       ? 'https://api.groq.com/openai/v1/chat/completions' :
+                        llmProvider === 'openai'     ? 'https://api.openai.com/v1/chat/completions' :
+                        llmProvider === 'openrouter' ? 'https://openrouter.ai/api/v1/chat/completions' :
+                        'Leave blank to use provider default'
+                      }
+                      value={llmBaseUrl}
+                      onChange={(e) => setLlmBaseUrl(e.target.value)}
+                      className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+
+                  {/* â”€â”€ Current config summary â”€â”€ */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest font-mono mb-2">Active Configuration</p>
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between text-[11px]">
+                        <span className="text-slate-500 font-mono">Provider</span>
+                        <span className="font-bold text-slate-800 font-mono capitalize">{llmProvider}</span>
+                      </div>
+                      <div className="flex justify-between text-[11px]">
+                        <span className="text-slate-500 font-mono">Model</span>
+                        <span className="font-bold text-slate-800 font-mono text-right max-w-[55%] truncate">{llmModel}</span>
+                      </div>
+                      <div className="flex justify-between text-[11px]">
+                        <span className="text-slate-500 font-mono">API Key</span>
+                        <span className={`font-bold font-mono ${llmApiKey ? 'text-emerald-600' : 'text-rose-500'}`}>
+                          {llmApiKey ? `${llmApiKey.slice(0, 8)}â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢` : 'Not set'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* â”€â”€ Save bar â”€â”€ */}
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                    <div>
+                      {settingsStatus && (
+                        <p className="text-[11px] text-emerald-600 font-mono font-bold flex items-center gap-1.5">
+                          <CheckCircle2 className="w-3.5 h-3.5" /> {settingsStatus}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
                       <button
                         type="button"
                         onClick={() => setShowAdminPanel(false)}
-                        className="px-5 py-2.5 rounded-xl border border-slate-200 hover:border-slate-300 text-xs font-bold text-slate-600 transition-colors cursor-pointer"
+                        className="px-4 py-2.5 rounded-xl border border-slate-200 hover:border-slate-300 text-xs font-bold text-slate-600 transition-colors cursor-pointer"
                       >
-                        Close
+                        Cancel
                       </button>
                       <button
                         type="submit"
                         disabled={savingSettings}
-                        className="px-6 py-2.5 bg-green-600 hover:bg-green-500 text-white rounded-xl text-xs font-bold font-mono transition-all flex items-center gap-1.5 shadow-md shadow-green-600/10 cursor-pointer disabled:opacity-50"
+                        className="px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-md shadow-emerald-600/20 cursor-pointer disabled:opacity-50"
                       >
-                        {savingSettings ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Layers className="w-4 h-4" />}
-                        Publish Settings
+                        {savingSettings ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                        Save & Apply
                       </button>
                     </div>
                   </div>
@@ -2029,6 +2946,299 @@ alter table app_settings disable row level security;`}
           </div>
         )}
       </AnimatePresence>
+
+      {/* Aether Card Modal */}
+      <AnimatePresence>
+        {showCertificate && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/75 backdrop-blur-md overflow-y-auto">
+            <div className="absolute inset-0 cursor-pointer" onClick={() => setShowCertificate(false)} />
+
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 30 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 30 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 190 }}
+              className="relative max-w-4xl w-full bg-white rounded-3xl border border-slate-200 shadow-2xl flex flex-col z-10 overflow-hidden my-8"
+            >
+              {/* Header */}
+              <div className="bg-slate-50 border-b border-slate-100 px-6 py-4 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-2">
+                  <Award className="w-5 h-5 text-emerald-600" />
+                  <span className="text-sm font-bold text-slate-800 font-mono">YOUR AETHER CARD</span>
+                </div>
+                <button
+                  onClick={() => setShowCertificate(false)}
+                  className="p-1.5 hover:bg-slate-200/60 rounded-lg text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Certificate Preview Card */}
+              <div className="p-6 overflow-y-auto flex flex-col items-center justify-center bg-slate-100/50 relative">
+                <div 
+                  id="certificate-preview-card"
+                  className="w-full max-w-3xl aspect-[1.414] rounded-lg shadow-lg select-none"
+                  style={{ 
+                    background: activeCertColors.bgGrad,
+                    padding: '2.5rem 2rem',
+                    border: `3px solid ${activeCertColors.border}`,
+                    position: 'relative',
+                    textAlign: 'center',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    overflow: 'hidden',
+                    boxSizing: 'border-box'
+                  }}
+                >
+                  {/* Inner thick border */}
+                  <div style={{ position: 'absolute', top: '4px', left: '4px', right: '4px', bottom: '4px', border: `10px double ${activeCertColors.doubleBorder}`, pointerEvents: 'none', borderRadius: '2px' }} />
+                  
+                  {/* Accent line */}
+                  <div style={{ position: 'absolute', top: '15px', left: '15px', right: '15px', bottom: '15px', border: `2px solid ${activeCertColors.goldBorder}`, pointerEvents: 'none', borderRadius: '2px' }}>
+                    {/* Corner brackets */}
+                    <div style={{ position: 'absolute', top: '-5px', left: '-5px', width: '12px', height: '12px', backgroundColor: activeCertColors.goldBorder }} />
+                    <div style={{ position: 'absolute', top: '-5px', right: '-5px', width: '12px', height: '12px', backgroundColor: activeCertColors.goldBorder }} />
+                    <div style={{ position: 'absolute', bottom: '-5px', left: '-5px', width: '12px', height: '12px', backgroundColor: activeCertColors.goldBorder }} />
+                    <div style={{ position: 'absolute', bottom: '-5px', right: '-5px', width: '12px', height: '12px', backgroundColor: activeCertColors.goldBorder }} />
+                  </div>
+                  
+                  {/* Corner flourishes */}
+                  {/* Top-Left Flourish */}
+                  <div style={{ position: 'absolute', top: '16px', left: '16px', pointerEvents: 'none' }} className={activeCertColors.leafOpacity}>
+                    <Leaf style={{ width: '40px', height: '40px', position: 'absolute', top: 0, left: 0, transform: 'rotate(-45deg)' }} />
+                    <Leaf style={{ width: '24px', height: '24px', position: 'absolute', top: '12px', left: '12px', transform: 'rotate(-60deg)' }} />
+                  </div>
+                  {/* Top-Right Flourish */}
+                  <div style={{ position: 'absolute', top: '16px', right: '16px', pointerEvents: 'none' }} className={activeCertColors.leafOpacity}>
+                    <Leaf style={{ width: '40px', height: '40px', position: 'absolute', top: 0, right: 0, transform: 'rotate(45deg)' }} />
+                    <Leaf style={{ width: '24px', height: '24px', position: 'absolute', top: '12px', right: '12px', transform: 'rotate(60deg)' }} />
+                  </div>
+                  {/* Bottom-Left Flourish */}
+                  <div style={{ position: 'absolute', bottom: '16px', left: '16px', pointerEvents: 'none' }} className={activeCertColors.leafOpacity}>
+                    <Leaf style={{ width: '40px', height: '40px', position: 'absolute', bottom: 0, left: 0, transform: 'rotate(-135deg)' }} />
+                    <Leaf style={{ width: '24px', height: '24px', position: 'absolute', bottom: '12px', left: '12px', transform: 'rotate(-120deg)' }} />
+                  </div>
+                  {/* Bottom-Right Flourish */}
+                  <div style={{ position: 'absolute', bottom: '16px', right: '16px', pointerEvents: 'none' }} className={activeCertColors.leafOpacity}>
+                    <Leaf style={{ width: '40px', height: '40px', position: 'absolute', bottom: 0, right: 0, transform: 'rotate(135deg)' }} />
+                    <Leaf style={{ width: '24px', height: '24px', position: 'absolute', bottom: '12px', right: '12px', transform: 'rotate(120deg)' }} />
+                  </div>
+                  
+                  {/* Large center leaf watermark */}
+                  <Leaf style={{ position: 'absolute', width: '256px', height: '256px', top: '50%', left: '50%', transform: 'translate(-50%, -50%) rotate(12deg)', color: activeCertColors.text, opacity: 0.025 }} className="pointer-events-none" />
+ 
+                  {/* Header stamp */}
+                  <div className="flex flex-col items-center mt-2 relative z-10">
+                    <div style={{ backgroundColor: activeCertColors.border }} className="w-10 h-10 rounded-full flex items-center justify-center text-white mb-2 shadow relative">
+                      <Leaf className="w-5 h-5 text-white" />
+                    </div>
+                    <span className="text-[10px] font-bold tracking-[0.2em] font-mono text-slate-700 uppercase">Aether Sync Ledger Matrix</span>
+                  </div>
+ 
+                  {/* Title */}
+                  <div className="my-1 relative z-10 flex flex-col items-center">
+                    <h2 className="text-2xl md:text-3xl font-bold font-serif italic text-center" style={{ color: activeCertColors.text }}>Aether Card of Sequestration</h2>
+                    <p className="text-[11px] text-slate-500 italic mt-1 font-serif text-center">This Aether Card is proudly awarded to</p>
+                    
+                    {/* Profile image in a border-blending circular container */}
+                    {avatarImg && (
+                      <div className="mt-2.5 mb-1 flex justify-center">
+                        <div 
+                          style={{ 
+                            borderColor: activeCertColors.border,
+                            boxShadow: `0 0 15px ${activeCertColors.border}25`
+                          }} 
+                          className="w-16 h-16 rounded-full border-2 p-0.5 bg-white/80 flex items-center justify-center overflow-hidden transition-all shadow-md"
+                        >
+                          <img 
+                            src={avatarImg} 
+                            alt="Profile" 
+                            className="w-full h-full rounded-full object-cover" 
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+ 
+                  {/* Name */}
+                  <div className="my-1 relative z-10">
+                    <p className="text-2xl md:text-3xl font-bold font-serif text-slate-900 border-b border-slate-200 inline-block px-8 pb-1">
+                      {profile?.display_name || user?.display_name || 'Eco Guardian'}
+                    </p>
+                  </div>
+ 
+                  {/* Cursive appreciation */}
+                  <div className="my-1.5 relative z-10">
+                    <p className="font-cursive text-base md:text-lg font-semibold leading-tight" style={{ color: activeCertColors.text }}>
+                      "With deepest appreciation for your mindful steps toward a greener, cooler planet."
+                    </p>
+                  </div>
+ 
+                  {/* Description */}
+                  <div className="max-w-xl mx-auto text-[11px] text-slate-600 font-serif leading-relaxed px-4 relative z-10">
+                    {getCertificateDescription(rank)}
+                  </div>
+ 
+                  {/* Motivation */}
+                  <div className="max-w-md mx-auto text-[9.5px] font-serif italic my-1 border-t border-b py-1.5 px-4 relative z-10" style={{ borderColor: activeCertColors.border + '33', color: activeCertColors.text, backgroundColor: activeCertColors.border + '0c' }}>
+                    "Every action synchronized is a testament to the belief that human progress can beat in harmony with nature."
+                  </div>
+ 
+                  {/* Footer (Date & Signatures) */}
+                  <div 
+                    style={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'flex-end', 
+                      width: '100%', 
+                      paddingLeft: '1.5rem', 
+                      paddingRight: '1.5rem', 
+                      position: 'relative', 
+                      zIndex: 10, 
+                      marginTop: 'auto', 
+                      marginBottom: '0.25rem',
+                      boxSizing: 'border-box'
+                    }}
+                  >
+                    {/* Date */}
+                    <div 
+                      style={{ 
+                        display: 'flex', 
+                        flexDirection: 'column', 
+                        alignItems: 'center', 
+                        flex: '1 1 0%', 
+                        minWidth: 0 
+                      }}
+                    >
+                      <span className="text-[11px] font-bold text-slate-800 font-serif border-b border-slate-300 pb-1 text-center" style={{ width: '112px' }}>
+                        {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                      </span>
+                      <span className="text-[8px] font-bold text-slate-400 font-mono mt-1 uppercase text-center">DATE OF EMISSION RECORD</span>
+                    </div>
+ 
+                    {/* Metallic Rank Ribbon Banner */}
+                    <div 
+                      style={{ 
+                        display: 'flex', 
+                        justifyContent: 'center', 
+                        alignItems: 'center', 
+                        position: 'relative', 
+                        height: '48px', 
+                        width: '280px', 
+                        flexShrink: 0 
+                      }}
+                    >
+                      {/* Left ribbon tail */}
+                      <div 
+                        className={`metallic-badge ${badgeConfig.class}`}
+                        style={{
+                          position: 'absolute',
+                          right: '50%',
+                          marginRight: '95px',
+                          top: '12px',
+                          width: '45px',
+                          height: '24px',
+                          zIndex: 9,
+                          clipPath: 'polygon(100% 0%, 100% 100%, 0% 100%, 20% 50%, 0% 0%)',
+                          filter: 'brightness(0.75)',
+                          boxShadow: '0 2px 5px rgba(0,0,0,0.15)',
+                          border: '1px solid rgba(255,255,255,0.15)'
+                        }}
+                      />
+
+                      {/* Right ribbon tail */}
+                      <div 
+                        className={`metallic-badge ${badgeConfig.class}`}
+                        style={{
+                          position: 'absolute',
+                          left: '50%',
+                          marginLeft: '95px',
+                          top: '12px',
+                          width: '45px',
+                          height: '24px',
+                          zIndex: 9,
+                          clipPath: 'polygon(0% 0%, 100% 0%, 80% 50%, 100% 100%, 0% 100%)',
+                          filter: 'brightness(0.75)',
+                          boxShadow: '0 2px 5px rgba(0,0,0,0.15)',
+                          border: '1px solid rgba(255,255,255,0.15)'
+                        }}
+                      />
+
+                      {/* Main Ribbon Body */}
+                      <div 
+                        className={`metallic-badge ${badgeConfig.class}`}
+                        style={{
+                          position: 'relative',
+                          zIndex: 10,
+                          width: '210px',
+                          height: '34px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px',
+                          borderRadius: '4px',
+                          border: '1.5px solid rgba(255,255,255,0.35)',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.15), inset 0 1px 1px rgba(255,255,255,0.4)',
+                          boxSizing: 'border-box'
+                        }}
+                      >
+                        <div style={{ color: activeCertColors.sealText }} className="shrink-0 scale-95 flex items-center">
+                          {badgeConfig.icon}
+                        </div>
+                        <span 
+                          className="text-[9px] font-serif uppercase font-extrabold tracking-[0.15em] whitespace-nowrap select-none"
+                          style={{ color: activeCertColors.sealText }}
+                        >
+                          {rank}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Registry Signature */}
+                    <div 
+                      style={{ 
+                        display: 'flex', 
+                        flexDirection: 'column', 
+                        alignItems: 'center', 
+                        flex: '1 1 0%', 
+                        minWidth: 0 
+                      }}
+                    >
+                      <span className="text-sm font-bold text-slate-800 font-cursive italic border-b border-slate-300 pb-1 select-none text-center" style={{ width: '112px' }}>
+                        Vibhath T K
+                      </span>
+                      <span className="text-[8px] font-bold text-slate-400 font-mono mt-1 uppercase text-center">AETHER VERIFICATION REGISTRY</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action buttons */}
+              <div className="bg-slate-50 border-t border-slate-100 px-6 py-4 flex items-center justify-end gap-3 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowCertificate(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 hover:border-slate-300 text-xs font-bold text-slate-600 transition-colors cursor-pointer bg-white"
+                >
+                  Close
+                </button>
+                <button
+                  type="button"
+                  onClick={downloadCertificate}
+                  className="px-6 py-2 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-md shadow-emerald-600/10 cursor-pointer"
+                >
+                  <Download className="w-4 h-4" />
+                  Download PNG
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
+
