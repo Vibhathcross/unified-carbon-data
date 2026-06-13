@@ -2986,9 +2986,20 @@ export default function Dashboard({
 
                   {/* ── System Prompt override ── */}
                   <div className="space-y-1.5">
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest font-mono">
-                      System Prompt (instruction override)
-                    </label>
+                    <div className="flex items-center justify-between">
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest font-mono">
+                        System Prompt <span className="normal-case text-slate-400 font-normal">(instruction override)</span>
+                      </label>
+                      {llmSystemPrompt !== defaultSettings.llm_system_prompt && (
+                        <button
+                          type="button"
+                          onClick={() => setLlmSystemPrompt(defaultSettings.llm_system_prompt)}
+                          className="text-[10px] text-emerald-700 hover:text-emerald-800 font-mono font-bold flex items-center gap-1 cursor-pointer"
+                        >
+                          Reset to Default
+                        </button>
+                      )}
+                    </div>
                     <textarea
                       placeholder="Enter custom LLM instructions..."
                       value={llmSystemPrompt}
@@ -2997,7 +3008,7 @@ export default function Dashboard({
                       className="w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono focus:outline-none focus:border-emerald-500 resize-y min-h-[240px]"
                     />
                     <p className="text-[10px] text-slate-400 font-mono">
-                      Directly edit the instructions used by the system to analyze journal entries. Leave empty to revert to system default.
+                      Directly edit the instructions used by the system to analyze journal entries.
                     </p>
                   </div>
 
