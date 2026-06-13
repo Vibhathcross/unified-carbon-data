@@ -6,7 +6,8 @@ import {
   LogOut, Plus, Trash2, History, BarChart3, User, Award, Download, Printer, X,
   Sparkles, RefreshCw, Send, Calendar, ChevronRight, Info, 
   Settings, Database, Leaf, Car, Utensils, Zap, ShoppingBag, 
-  Layers, Globe, CheckCircle2, ShieldAlert, Terminal, Flame, Trees
+  Layers, Globe, CheckCircle2, ShieldAlert, Terminal, Flame, Trees,
+  XCircle, AlertTriangle
 } from 'lucide-react'
 import { toPng } from 'html-to-image'
 
@@ -3026,11 +3027,28 @@ export default function Dashboard({
                   {/* â”€â”€ Save bar â”€â”€ */}
                   <div className="flex items-center justify-between pt-2 border-t border-slate-100">
                     <div>
-                      {settingsStatus && (
-                        <p className="text-[11px] text-emerald-600 font-mono font-bold flex items-center gap-1.5">
-                          <CheckCircle2 className="w-3.5 h-3.5" /> {settingsStatus}
-                        </p>
-                      )}
+                      {settingsStatus && (() => {
+                        const isError = settingsStatus.startsWith('✗');
+                        const isWarning = settingsStatus.startsWith('⚠');
+                        const cleanMsg = settingsStatus.replace(/^[✗✓⚠]\s*/, '');
+                        
+                        let textColor = 'text-emerald-600';
+                        let IconComponent = CheckCircle2;
+                        
+                        if (isError) {
+                          textColor = 'text-rose-600';
+                          IconComponent = XCircle;
+                        } else if (isWarning) {
+                          textColor = 'text-amber-600';
+                          IconComponent = AlertTriangle;
+                        }
+                        
+                        return (
+                          <p className={`text-[11px] ${textColor} font-mono font-bold flex items-center gap-1.5`}>
+                            <IconComponent className="w-3.5 h-3.5 shrink-0" /> {cleanMsg}
+                          </p>
+                        );
+                      })()}
                     </div>
                     <div className="flex gap-2">
                       <button
