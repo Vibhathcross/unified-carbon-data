@@ -1573,8 +1573,35 @@ export default function Dashboard({
 
                   {/* 10-Day Rolling Efficiency Progress bar */}
                   <div className="space-y-1.5">
-                    <div className="flex justify-between text-[10px]">
-                      <span className="text-slate-500">10-Day Efficiency</span>
+                    <div className="flex justify-between text-[10px] items-center">
+                      <div className="flex items-center gap-1 relative group">
+                        <span className="text-slate-500">10-Day Efficiency</span>
+                        <Info className="w-3 h-3 text-slate-400 hover:text-emerald-500 transition-colors cursor-help shrink-0" />
+                        
+                        {/* Tooltip Content */}
+                        <div className="absolute left-0 bottom-5 w-72 bg-emerald-950/95 backdrop-blur border border-emerald-500/20 text-emerald-100 rounded-2xl p-4 shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 pointer-events-none text-xs leading-relaxed text-left">
+                          <div className="font-bold text-emerald-400 mb-1.5 font-mono tracking-wider uppercase text-[10px]">
+                            10-Day Efficiency Guide
+                          </div>
+                          <div className="space-y-2 text-slate-300 text-[10.5px]">
+                            <div>
+                              <span className="font-bold text-white block mb-0.5">Calculation Method:</span>
+                              <p className="leading-normal">
+                                Your daily efficiency score (1.0 to 10.0) is assigned by AI based on carbon intensity. We compute the rolling average of your last 10 active days, scaled to 0-100%.
+                              </p>
+                            </div>
+                            <div>
+                              <span className="font-bold text-white block mb-0.5">Strategies to Improve:</span>
+                              <ul className="list-disc pl-3.5 space-y-0.5 leading-normal">
+                                <li>Prefer rail, bus, or active transit over driving.</li>
+                                <li>Incorporate more plant-based meals into your diet.</li>
+                                <li>Lower thermostat usage & switch to LED bulbs.</li>
+                                <li>Adopt carbon pledges in the Sync panel.</li>
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                       <span className="text-green-700 font-bold font-mono"><AnimatedCounter value={averageEfficiency} />%</span>
                     </div>
                     <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
@@ -2459,28 +2486,34 @@ export default function Dashboard({
                       <Info className="w-3 h-3 text-slate-400 hover:text-emerald-500 transition-colors cursor-help shrink-0" />
                       
                       {/* Tooltip Content */}
-                      <div className="absolute left-1/2 transform -translate-x-1/2 bottom-6 w-72 bg-slate-900/95 backdrop-blur border border-slate-700 text-white rounded-2xl p-4 shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 pointer-events-none text-xs leading-relaxed text-left">
+                      <div className="absolute left-1/2 transform -translate-x-1/2 bottom-6 w-72 bg-emerald-950/95 backdrop-blur border border-emerald-500/20 text-emerald-100 rounded-2xl p-4 shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 pointer-events-none text-xs leading-relaxed text-left">
                         <div className="font-bold text-emerald-400 mb-1.5 font-mono tracking-wider uppercase text-[10px]">
-                          Calculation Strategy
+                          Calculation & Strategy
                         </div>
-                        <div className="space-y-1.5 text-slate-300 text-[11px]">
-                          <p>
-                            <strong className="text-white">1. Daily Aggregation:</strong> Multiple logs in a single day are averaged to form one daily entry.
-                          </p>
-                          <p>
-                            <strong className="text-white">2. 10-Day Window:</strong> Calculation operates on a sliding window of the 10 most recent active days.
-                          </p>
-                          <p>
-                            <strong className="text-white">3. Average Efficiency:</strong> The rolling mean of those daily scores (scale 1.0 to 10.0) is converted to a percentage.
-                          </p>
-                          <p>
-                            <strong className="text-white">4. Rank Brackets:</strong>
-                          </p>
-                          <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 mt-1 pt-1 border-t border-slate-800 text-[10px] font-mono">
-                            <span className="text-emerald-400">9.0+ : Eco Vanguard</span>
-                            <span className="text-teal-400">7.0+ : Earth Guardian</span>
-                            <span className="text-amber-400">4.0+ : Seeker</span>
-                            <span className="text-rose-400">1.0+ : Beginner</span>
+                        <div className="space-y-2 text-slate-300 text-[10.5px]">
+                          <div>
+                            <span className="font-bold text-white block mb-0.5">Methodology:</span>
+                            <p className="leading-normal">
+                              Daily logs are averaged. The rolling efficiency is the average score of your last 10 active days (1.0 to 10.0 scale) scaled to 0-100%.
+                            </p>
+                          </div>
+                          <div>
+                            <span className="font-bold text-white block mb-0.5">Rank Brackets:</span>
+                            <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 mt-0.5 text-[10px] font-mono">
+                              <span className="text-emerald-400">9.0+ : Eco Vanguard</span>
+                              <span className="text-teal-400">7.0+ : Earth Guardian</span>
+                              <span className="text-amber-400">4.0+ : Seeker</span>
+                              <span className="text-rose-400">1.0+ : Beginner</span>
+                            </div>
+                          </div>
+                          <div>
+                            <span className="font-bold text-white block mb-0.5">Strategies to Improve:</span>
+                            <ul className="list-disc pl-3.5 space-y-0.5 leading-normal">
+                              <li>Prefer public or active transit over single-passenger cars.</li>
+                              <li>Adopt a plant-based diet (less meat & dairy).</li>
+                              <li>Reduce home energy & switch off idle appliances.</li>
+                              <li>Commit to habit pledges in the Sync panel.</li>
+                            </ul>
                           </div>
                         </div>
                       </div>
