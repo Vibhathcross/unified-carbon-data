@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react'
+﻿import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { supabase } from '../supabaseClient'
 import { analyzeJournalEntry, analyzeJournalEntryAsync } from '../utils/carbonAnalyzer'
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion'
@@ -2938,7 +2938,7 @@ export default function Dashboard({
       {/* Aether Card Modal */}
       <AnimatePresence>
         {showCertificate && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/75 backdrop-blur-md overflow-y-auto">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 bg-slate-900/75 backdrop-blur-md overflow-y-auto">
             <div className="absolute inset-0 cursor-pointer" onClick={() => setShowCertificate(false)} />
 
             <motion.div
@@ -2946,10 +2946,10 @@ export default function Dashboard({
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 30 }}
               transition={{ type: 'spring', damping: 28, stiffness: 190 }}
-              className="relative max-w-4xl w-full bg-white rounded-3xl border border-slate-200 shadow-2xl flex flex-col z-10 overflow-hidden my-8"
+              className="relative w-full max-w-4xl bg-white rounded-3xl border border-slate-200 shadow-2xl flex flex-col z-10 overflow-hidden my-4 sm:my-8"
             >
               {/* Header */}
-              <div className="bg-slate-50 border-b border-slate-100 px-6 py-4 flex items-center justify-between shrink-0">
+              <div className="bg-slate-50 border-b border-slate-100 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-2">
                   <Award className="w-5 h-5 text-emerald-600" />
                   <span className="text-sm font-bold text-slate-800 font-mono">YOUR AETHER CARD</span>
@@ -2963,13 +2963,12 @@ export default function Dashboard({
               </div>
 
               {/* Certificate Preview Card */}
-              <div className="p-6 overflow-y-auto flex flex-col items-center justify-center bg-slate-100/50 relative">
-                <div 
+              <div className="p-3 sm:p-6 overflow-y-auto flex flex-col items-center justify-center bg-slate-100/50 relative">
+                <div
                   id="certificate-preview-card"
-                  className="w-full max-w-3xl aspect-[1.414] rounded-lg shadow-lg select-none"
-                  style={{ 
+                  className="w-full select-none rounded-lg shadow-lg"
+                  style={{
                     background: activeCertColors.bgGrad,
-                    padding: '2.5rem 2rem',
                     border: `3px solid ${activeCertColors.border}`,
                     position: 'relative',
                     textAlign: 'center',
@@ -2978,157 +2977,147 @@ export default function Dashboard({
                     justifyContent: 'space-between',
                     alignItems: 'center',
                     overflow: 'hidden',
-                    boxSizing: 'border-box'
+                    boxSizing: 'border-box',
+                    padding: 'clamp(1rem, 4vw, 2.5rem) clamp(0.75rem, 3vw, 2rem)',
+                    minHeight: 'clamp(320px, 60vw, 566px)',
                   }}
                 >
                   {/* Inner thick border */}
                   <div style={{ position: 'absolute', top: '4px', left: '4px', right: '4px', bottom: '4px', border: `10px double ${activeCertColors.doubleBorder}`, pointerEvents: 'none', borderRadius: '2px' }} />
-                  
+
                   {/* Accent line */}
                   <div style={{ position: 'absolute', top: '15px', left: '15px', right: '15px', bottom: '15px', border: `2px solid ${activeCertColors.goldBorder}`, pointerEvents: 'none', borderRadius: '2px' }}>
                     {/* Corner brackets */}
-                    <div style={{ position: 'absolute', top: '-5px', left: '-5px', width: '12px', height: '12px', backgroundColor: activeCertColors.goldBorder }} />
-                    <div style={{ position: 'absolute', top: '-5px', right: '-5px', width: '12px', height: '12px', backgroundColor: activeCertColors.goldBorder }} />
-                    <div style={{ position: 'absolute', bottom: '-5px', left: '-5px', width: '12px', height: '12px', backgroundColor: activeCertColors.goldBorder }} />
-                    <div style={{ position: 'absolute', bottom: '-5px', right: '-5px', width: '12px', height: '12px', backgroundColor: activeCertColors.goldBorder }} />
+                    <div style={{ position: 'absolute', top: '-5px', left: '-5px', width: '10px', height: '10px', backgroundColor: activeCertColors.goldBorder }} />
+                    <div style={{ position: 'absolute', top: '-5px', right: '-5px', width: '10px', height: '10px', backgroundColor: activeCertColors.goldBorder }} />
+                    <div style={{ position: 'absolute', bottom: '-5px', left: '-5px', width: '10px', height: '10px', backgroundColor: activeCertColors.goldBorder }} />
+                    <div style={{ position: 'absolute', bottom: '-5px', right: '-5px', width: '10px', height: '10px', backgroundColor: activeCertColors.goldBorder }} />
                   </div>
-                  
-                  {/* Corner flourishes */}
-                  {/* Top-Left Flourish */}
+
+                  {/* Corner flourishes — scaled down on mobile */}
                   <div style={{ position: 'absolute', top: '16px', left: '16px', pointerEvents: 'none' }} className={activeCertColors.leafOpacity}>
-                    <Leaf style={{ width: '40px', height: '40px', position: 'absolute', top: 0, left: 0, transform: 'rotate(-45deg)' }} />
-                    <Leaf style={{ width: '24px', height: '24px', position: 'absolute', top: '12px', left: '12px', transform: 'rotate(-60deg)' }} />
+                    <Leaf style={{ width: 'clamp(22px,5vw,40px)', height: 'clamp(22px,5vw,40px)', position: 'absolute', top: 0, left: 0, transform: 'rotate(-45deg)' }} />
+                    <Leaf style={{ width: 'clamp(14px,3vw,24px)', height: 'clamp(14px,3vw,24px)', position: 'absolute', top: '10px', left: '10px', transform: 'rotate(-60deg)' }} />
                   </div>
-                  {/* Top-Right Flourish */}
                   <div style={{ position: 'absolute', top: '16px', right: '16px', pointerEvents: 'none' }} className={activeCertColors.leafOpacity}>
-                    <Leaf style={{ width: '40px', height: '40px', position: 'absolute', top: 0, right: 0, transform: 'rotate(45deg)' }} />
-                    <Leaf style={{ width: '24px', height: '24px', position: 'absolute', top: '12px', right: '12px', transform: 'rotate(60deg)' }} />
+                    <Leaf style={{ width: 'clamp(22px,5vw,40px)', height: 'clamp(22px,5vw,40px)', position: 'absolute', top: 0, right: 0, transform: 'rotate(45deg)' }} />
+                    <Leaf style={{ width: 'clamp(14px,3vw,24px)', height: 'clamp(14px,3vw,24px)', position: 'absolute', top: '10px', right: '10px', transform: 'rotate(60deg)' }} />
                   </div>
-                  {/* Bottom-Left Flourish */}
                   <div style={{ position: 'absolute', bottom: '16px', left: '16px', pointerEvents: 'none' }} className={activeCertColors.leafOpacity}>
-                    <Leaf style={{ width: '40px', height: '40px', position: 'absolute', bottom: 0, left: 0, transform: 'rotate(-135deg)' }} />
-                    <Leaf style={{ width: '24px', height: '24px', position: 'absolute', bottom: '12px', left: '12px', transform: 'rotate(-120deg)' }} />
+                    <Leaf style={{ width: 'clamp(22px,5vw,40px)', height: 'clamp(22px,5vw,40px)', position: 'absolute', bottom: 0, left: 0, transform: 'rotate(-135deg)' }} />
+                    <Leaf style={{ width: 'clamp(14px,3vw,24px)', height: 'clamp(14px,3vw,24px)', position: 'absolute', bottom: '10px', left: '10px', transform: 'rotate(-120deg)' }} />
                   </div>
-                  {/* Bottom-Right Flourish */}
                   <div style={{ position: 'absolute', bottom: '16px', right: '16px', pointerEvents: 'none' }} className={activeCertColors.leafOpacity}>
-                    <Leaf style={{ width: '40px', height: '40px', position: 'absolute', bottom: 0, right: 0, transform: 'rotate(135deg)' }} />
-                    <Leaf style={{ width: '24px', height: '24px', position: 'absolute', bottom: '12px', right: '12px', transform: 'rotate(120deg)' }} />
+                    <Leaf style={{ width: 'clamp(22px,5vw,40px)', height: 'clamp(22px,5vw,40px)', position: 'absolute', bottom: 0, right: 0, transform: 'rotate(135deg)' }} />
+                    <Leaf style={{ width: 'clamp(14px,3vw,24px)', height: 'clamp(14px,3vw,24px)', position: 'absolute', bottom: '10px', right: '10px', transform: 'rotate(120deg)' }} />
                   </div>
-                  
+
                   {/* Large center leaf watermark */}
-                  <Leaf style={{ position: 'absolute', width: '256px', height: '256px', top: '50%', left: '50%', transform: 'translate(-50%, -50%) rotate(12deg)', color: activeCertColors.text, opacity: 0.025 }} className="pointer-events-none" />
- 
+                  <Leaf style={{ position: 'absolute', width: 'clamp(120px,35vw,256px)', height: 'clamp(120px,35vw,256px)', top: '50%', left: '50%', transform: 'translate(-50%, -50%) rotate(12deg)', color: activeCertColors.text, opacity: 0.025 }} className="pointer-events-none" />
+
                   {/* Header stamp */}
-                  <div className="flex flex-col items-center mt-2 relative z-10">
-                    <div style={{ backgroundColor: activeCertColors.border }} className="w-10 h-10 rounded-full flex items-center justify-center text-white mb-2 shadow relative">
-                      <Leaf className="w-5 h-5 text-white" />
+                  <div className="flex flex-col items-center relative z-10" style={{ marginTop: 'clamp(0.25rem, 2vw, 0.5rem)' }}>
+                    <div style={{ backgroundColor: activeCertColors.border, width: 'clamp(28px,7vw,40px)', height: 'clamp(28px,7vw,40px)' }} className="rounded-full flex items-center justify-center text-white mb-1.5 shadow">
+                      <Leaf style={{ width: 'clamp(14px,3.5vw,20px)', height: 'clamp(14px,3.5vw,20px)' }} className="text-white" />
                     </div>
-                    <span className="text-[10px] font-bold tracking-[0.2em] font-mono text-slate-700 uppercase">Aether Sync Ledger Matrix</span>
+                    <span style={{ fontSize: 'clamp(7px, 1.8vw, 10px)' }} className="font-bold tracking-[0.18em] font-mono text-slate-700 uppercase">Aether Sync Ledger Matrix</span>
                   </div>
- 
+
                   {/* Title */}
-                  <div className="my-1 relative z-10 flex flex-col items-center">
-                    <h2 className="text-2xl md:text-3xl font-bold font-serif italic text-center" style={{ color: activeCertColors.text }}>Aether Card of Sequestration</h2>
-                    <p className="text-[11px] text-slate-500 italic mt-1 font-serif text-center">This Aether Card is proudly awarded to</p>
-                    
-                    {/* Profile image in a border-blending circular container */}
+                  <div className="relative z-10 flex flex-col items-center" style={{ margin: 'clamp(0.25rem, 1.5vw, 0.5rem) 0' }}>
+                    <h2 className="font-bold font-serif italic text-center" style={{ color: activeCertColors.text, fontSize: 'clamp(1rem, 4.5vw, 1.875rem)' }}>
+                      Aether Card of Sequestration
+                    </h2>
+                    <p className="italic mt-1 font-serif text-center text-slate-500" style={{ fontSize: 'clamp(8px, 2vw, 11px)' }}>
+                      This Aether Card is proudly awarded to
+                    </p>
+
+                    {/* Avatar */}
                     {avatarImg && (
-                      <div className="mt-2.5 mb-1 flex justify-center">
-                        <div 
-                          style={{ 
-                            borderColor: activeCertColors.border,
-                            boxShadow: `0 0 15px ${activeCertColors.border}25`
-                          }} 
-                          className="w-16 h-16 rounded-full border-2 p-0.5 bg-white/80 flex items-center justify-center overflow-hidden transition-all shadow-md"
+                      <div className="mt-2 mb-1 flex justify-center">
+                        <div
+                          style={{ borderColor: activeCertColors.border, boxShadow: `0 0 15px ${activeCertColors.border}25`, width: 'clamp(40px,10vw,64px)', height: 'clamp(40px,10vw,64px)' }}
+                          className="rounded-full border-2 p-0.5 bg-white/80 flex items-center justify-center overflow-hidden transition-all shadow-md"
                         >
-                          <img 
-                            src={avatarImg} 
-                            alt="Profile" 
-                            className="w-full h-full rounded-full object-cover" 
-                          />
+                          <img src={avatarImg} alt="Profile" className="w-full h-full rounded-full object-cover" />
                         </div>
                       </div>
                     )}
                   </div>
- 
+
                   {/* Name */}
-                  <div className="my-1 relative z-10">
-                    <p className="text-2xl md:text-3xl font-bold font-serif text-slate-900 border-b border-slate-200 inline-block px-8 pb-1">
+                  <div className="relative z-10" style={{ margin: 'clamp(0.1rem, 1vw, 0.25rem) 0' }}>
+                    <p className="font-bold font-serif text-slate-900 border-b border-slate-200 inline-block pb-1" style={{ fontSize: 'clamp(1rem, 4.5vw, 1.875rem)', paddingLeft: 'clamp(1rem, 5vw, 2rem)', paddingRight: 'clamp(1rem, 5vw, 2rem)' }}>
                       {profile?.display_name || user?.display_name || 'Eco Guardian'}
                     </p>
                   </div>
- 
+
                   {/* Cursive appreciation */}
-                  <div className="my-1.5 relative z-10">
-                    <p className="font-cursive text-base md:text-lg font-semibold leading-tight" style={{ color: activeCertColors.text }}>
+                  <div className="relative z-10" style={{ margin: 'clamp(0.25rem, 1.5vw, 0.375rem) 0' }}>
+                    <p className="font-cursive font-semibold leading-tight" style={{ color: activeCertColors.text, fontSize: 'clamp(9px, 2.5vw, 16px)' }}>
                       "With deepest appreciation for your mindful steps toward a greener, cooler planet."
                     </p>
                   </div>
- 
+
                   {/* Description */}
-                  <div className="max-w-xl mx-auto text-[11px] text-slate-600 font-serif leading-relaxed px-4 relative z-10">
+                  <div className="mx-auto font-serif leading-relaxed relative z-10 px-4" style={{ maxWidth: '36rem', fontSize: 'clamp(7px, 1.8vw, 11px)', color: '#475569' }}>
                     {getCertificateDescription(rank)}
                   </div>
- 
+
                   {/* Motivation */}
-                  <div className="max-w-md mx-auto text-[9.5px] font-serif italic my-1 border-t border-b py-1.5 px-4 relative z-10" style={{ borderColor: activeCertColors.border + '33', color: activeCertColors.text, backgroundColor: activeCertColors.border + '0c' }}>
+                  <div
+                    className="mx-auto font-serif italic relative z-10 px-4"
+                    style={{
+                      maxWidth: '28rem',
+                      fontSize: 'clamp(6.5px, 1.6vw, 9.5px)',
+                      margin: 'clamp(0.25rem, 1.5vw, 0.5rem) auto',
+                      borderTop: `1px solid ${activeCertColors.border}33`,
+                      borderBottom: `1px solid ${activeCertColors.border}33`,
+                      padding: 'clamp(4px, 1.2vw, 6px) 1rem',
+                      color: activeCertColors.text,
+                      backgroundColor: activeCertColors.border + '0c',
+                    }}
+                  >
                     "Every action synchronized is a testament to the belief that human progress can beat in harmony with nature."
                   </div>
- 
-                  {/* Footer (Date & Signatures) */}
-                  <div 
-                    style={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between', 
-                      alignItems: 'flex-end', 
-                      width: '100%', 
-                      paddingLeft: '1.5rem', 
-                      paddingRight: '1.5rem', 
-                      position: 'relative', 
-                      zIndex: 10, 
-                      marginTop: 'auto', 
-                      marginBottom: '0.25rem',
-                      boxSizing: 'border-box'
+
+                  {/* Footer */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'flex-end',
+                      width: '100%',
+                      paddingLeft: 'clamp(0.5rem, 3vw, 1.5rem)',
+                      paddingRight: 'clamp(0.5rem, 3vw, 1.5rem)',
+                      position: 'relative',
+                      zIndex: 10,
+                      marginTop: 'auto',
+                      marginBottom: 'clamp(0.1rem, 1vw, 0.25rem)',
+                      boxSizing: 'border-box',
+                      gap: '0.5rem',
                     }}
                   >
                     {/* Date */}
-                    <div 
-                      style={{ 
-                        display: 'flex', 
-                        flexDirection: 'column', 
-                        alignItems: 'center', 
-                        flex: '1 1 0%', 
-                        minWidth: 0 
-                      }}
-                    >
-                      <span className="text-[11px] font-bold text-slate-800 font-serif border-b border-slate-300 pb-1 text-center" style={{ width: '112px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: '1 1 0%', minWidth: 0 }}>
+                      <span className="font-bold text-slate-800 font-serif border-b border-slate-300 pb-1 text-center" style={{ fontSize: 'clamp(7px, 1.8vw, 11px)', width: 'clamp(70px, 18vw, 112px)' }}>
                         {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
                       </span>
-                      <span className="text-[8px] font-bold text-slate-400 font-mono mt-1 uppercase text-center">DATE OF EMISSION RECORD</span>
+                      <span className="font-bold text-slate-400 font-mono mt-1 uppercase text-center" style={{ fontSize: 'clamp(5px, 1.3vw, 8px)' }}>DATE OF EMISSION RECORD</span>
                     </div>
- 
+
                     {/* Metallic Rank Ribbon Banner */}
-                    <div 
-                      style={{ 
-                        display: 'flex', 
-                        justifyContent: 'center', 
-                        alignItems: 'center', 
-                        position: 'relative', 
-                        height: '48px', 
-                        width: '280px', 
-                        flexShrink: 0 
-                      }}
-                    >
+                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative', height: 'clamp(32px, 8vw, 48px)', width: 'clamp(140px, 40vw, 280px)', flexShrink: 0 }}>
                       {/* Left ribbon tail */}
-                      <div 
+                      <div
                         className={`metallic-badge ${badgeConfig.class}`}
                         style={{
                           position: 'absolute',
                           right: '50%',
-                          marginRight: '95px',
-                          top: '12px',
-                          width: '45px',
-                          height: '24px',
+                          marginRight: 'clamp(50px, 13vw, 95px)',
+                          top: 'clamp(8px, 2vw, 12px)',
+                          width: 'clamp(22px, 6vw, 45px)',
+                          height: 'clamp(14px, 3.5vw, 24px)',
                           zIndex: 9,
                           clipPath: 'polygon(100% 0%, 100% 100%, 0% 100%, 20% 50%, 0% 0%)',
                           filter: 'brightness(0.75)',
@@ -3136,17 +3125,16 @@ export default function Dashboard({
                           border: '1px solid rgba(255,255,255,0.15)'
                         }}
                       />
-
                       {/* Right ribbon tail */}
-                      <div 
+                      <div
                         className={`metallic-badge ${badgeConfig.class}`}
                         style={{
                           position: 'absolute',
                           left: '50%',
-                          marginLeft: '95px',
-                          top: '12px',
-                          width: '45px',
-                          height: '24px',
+                          marginLeft: 'clamp(50px, 13vw, 95px)',
+                          top: 'clamp(8px, 2vw, 12px)',
+                          width: 'clamp(22px, 6vw, 45px)',
+                          height: 'clamp(14px, 3.5vw, 24px)',
                           zIndex: 9,
                           clipPath: 'polygon(0% 0%, 100% 0%, 80% 50%, 100% 100%, 0% 100%)',
                           filter: 'brightness(0.75)',
@@ -3154,31 +3142,30 @@ export default function Dashboard({
                           border: '1px solid rgba(255,255,255,0.15)'
                         }}
                       />
-
                       {/* Main Ribbon Body */}
-                      <div 
+                      <div
                         className={`metallic-badge ${badgeConfig.class}`}
                         style={{
                           position: 'relative',
                           zIndex: 10,
-                          width: '210px',
-                          height: '34px',
+                          width: 'clamp(105px, 28vw, 210px)',
+                          height: 'clamp(20px, 5vw, 34px)',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          gap: '6px',
+                          gap: 'clamp(3px, 1vw, 6px)',
                           borderRadius: '4px',
                           border: '1.5px solid rgba(255,255,255,0.35)',
                           boxShadow: '0 4px 12px rgba(0,0,0,0.15), inset 0 1px 1px rgba(255,255,255,0.4)',
                           boxSizing: 'border-box'
                         }}
                       >
-                        <div style={{ color: activeCertColors.sealText }} className="shrink-0 scale-95 flex items-center">
+                        <div style={{ color: activeCertColors.sealText, transform: 'scale(0.85)', display: 'flex', alignItems: 'center' }}>
                           {badgeConfig.icon}
                         </div>
-                        <span 
-                          className="text-[9px] font-serif uppercase font-extrabold tracking-[0.15em] whitespace-nowrap select-none"
-                          style={{ color: activeCertColors.sealText }}
+                        <span
+                          className="font-serif uppercase font-extrabold whitespace-nowrap select-none"
+                          style={{ color: activeCertColors.sealText, fontSize: 'clamp(5px, 1.5vw, 9px)', letterSpacing: '0.12em' }}
                         >
                           {rank}
                         </span>
@@ -3186,26 +3173,18 @@ export default function Dashboard({
                     </div>
 
                     {/* Registry Signature */}
-                    <div 
-                      style={{ 
-                        display: 'flex', 
-                        flexDirection: 'column', 
-                        alignItems: 'center', 
-                        flex: '1 1 0%', 
-                        minWidth: 0 
-                      }}
-                    >
-                      <span className="text-sm font-bold text-slate-800 font-cursive italic border-b border-slate-300 pb-1 select-none text-center" style={{ width: '112px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: '1 1 0%', minWidth: 0 }}>
+                      <span className="font-bold text-slate-800 font-cursive italic border-b border-slate-300 pb-1 select-none text-center" style={{ fontSize: 'clamp(9px, 2.5vw, 14px)', width: 'clamp(70px, 18vw, 112px)' }}>
                         Vibhath T K
                       </span>
-                      <span className="text-[8px] font-bold text-slate-400 font-mono mt-1 uppercase text-center">AETHER VERIFICATION REGISTRY</span>
+                      <span className="font-bold text-slate-400 font-mono mt-1 uppercase text-center" style={{ fontSize: 'clamp(5px, 1.3vw, 8px)' }}>AETHER VERIFICATION REGISTRY</span>
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Action buttons */}
-              <div className="bg-slate-50 border-t border-slate-100 px-6 py-4 flex items-center justify-end gap-3 shrink-0">
+              <div className="bg-slate-50 border-t border-slate-100 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-end gap-3 shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowCertificate(false)}
@@ -3229,4 +3208,3 @@ export default function Dashboard({
     </div>
   )
 }
-
