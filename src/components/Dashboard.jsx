@@ -7,7 +7,7 @@ import {
   Sparkles, RefreshCw, Send, Calendar, ChevronRight, Info, 
   Settings, Database, Leaf, Car, Utensils, Zap, ShoppingBag, 
   Layers, Globe, CheckCircle2, ShieldAlert, Terminal, Flame, Trees,
-  XCircle, AlertTriangle, Compass, BookOpen
+  XCircle, AlertTriangle, Compass, BookOpen, HelpCircle, Check
 } from 'lucide-react'
 import { toPng } from 'html-to-image'
 
@@ -290,33 +290,8 @@ export default function Dashboard({
   const [testingKey, setTestingKey] = useState(false)
   const [keyTestResult, setKeyTestResult] = useState(null) // null | 'ok' | 'fail'
 
-  // Pledges state & persistence
-  const [pledges, setPledges] = useState({})
-
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(`aether_pledges_${user.id}`)
-      if (stored) {
-        setPledges(JSON.parse(stored))
-      } else {
-        setPledges({})
-      }
-    } catch (e) {
-      console.error('Failed to load pledges', e)
-    }
-  }, [user.id])
-
-  const handlePledgeToggle = (logId, suggestionIdx) => {
-    const key = `${logId}-${suggestionIdx}`
-    setPledges(prev => {
-      const updated = { ...prev, [key]: !prev[key] }
-      if (!updated[key]) {
-        delete updated[key]
-      }
-      localStorage.setItem(`aether_pledges_${user.id}`, JSON.stringify(updated))
-      return updated
-    })
-  }
+  // Submitting Q&A Answers state
+  const [submittingAnswers, setSubmittingAnswers] = useState({})
 
   // Profile dropdown click outside handler
   useEffect(() => {
@@ -409,7 +384,7 @@ export default function Dashboard({
       if (appSettings.llm_provider === 'local') model = 'meta-llama/llama-3.3-70b-instruct'
       setLlmModel(model)
       let sysPrompt = appSettings.llm_system_prompt || ''
-      if (!sysPrompt || sysPrompt.trim() === '' || sysPrompt === OLD_DEFAULT_SYSTEM_PROMPT) {
+      if (!sysPrompt || sysPrompt.trim() === '' || !sysPrompt.includes('clarifying_questions')) {
         sysPrompt = defaultSettings.llm_system_prompt
       }
       setLlmSystemPrompt(sysPrompt)
@@ -1103,10 +1078,7 @@ export default function Dashboard({
   const averageFootprint = carbonLogsCount > 0 ? (totalKg / carbonLogsCount) : 0
   const averageEfficiency = rollingAverage * 10 // scale to 0-100% for progress rings and percentages
 
-  // Calculate pledges and projected reductions
-  const activePledgesCount = Object.keys(pledges).length
-  const projectedDailySavings = activePledgesCount * 1.5 // 1.5 kg CO2 saved per active pledge
-  const projectedAvgFootprint = Math.max(0, averageFootprint - projectedDailySavings)
+
 
   // Category breakdown
   const categoryCounts = logs.reduce((acc, log) => {
@@ -1172,9 +1144,17 @@ export default function Dashboard({
     await new Promise(resolve => setTimeout(resolve, 400))
 
     try {
+      const hasQuestions = calculation.clarifying_questions && calculation.clarifying_questions.length > 0;
+      const conversation = {
+        questions: hasQuestions ? [calculation.clarifying_questions.join('\n')] : [],
+        answers: [],
+        turn: hasQuestions ? 1 : 0
+      };
+      const serializedRawText = journalText + "\n---\n" + JSON.stringify(conversation);
+
       const newLog = {
         user_id: user.id,
-        raw_text: journalText,
+        raw_text: serializedRawText,
         calculated_kg: calculation.calculated_kg,
         efficiency_score: calculation.efficiency_score,
         category: calculation.category || null,
@@ -1241,6 +1221,111 @@ export default function Dashboard({
       }
     } catch (err) {
       console.error('Delete error:', err)
+    }
+  }
+
+  // Handle Answer Q&A clarification
+  const handleAnswerClarification = async (logId, answerText) => {
+    if (submittingAnswers[logId]) return
+
+    setSubmittingAnswers(prev => ({ ...prev, [logId]: true }))
+
+    try {
+      // 1. Find the log
+      const log = logs.find(l => l.log_id === logId)
+      if (!log) throw new Error('Log not found')
+
+      // 2. Parse the conversation
+      let originalText = log.raw_text || ''
+      let conversation = { questions: [], answers: [], turn: 0 }
+      if (log.raw_text && log.raw_text.includes('\n---\n')) {
+        const parts = log.raw_text.split('\n---\n')
+        originalText = parts[0]
+        try {
+          conversation = JSON.parse(parts[1])
+        } catch (e) {
+          console.error('Failed to parse conversation json', e)
+        }
+      }
+
+      // 3. Add the answer to conversation
+      conversation.answers.push(answerText)
+
+      // 4. Construct conversation history text for the LLM prompt
+      let historyText = ''
+      for (let i = 0; i < conversation.questions.length; i++) {
+        const q = conversation.questions[i] || ''
+        const a = conversation.answers[i] || ''
+        historyText += `\nAI Question ${i + 1}: ${q}\nUser Answer ${i + 1}: ${a}\n`
+      }
+
+      const compositePrompt = `${originalText}
+
+[Conversation History]
+${historyText}
+
+Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set "clarifying_questions" to null or an empty array and output your final calculation.)`
+
+      // 5. Call LLM to recalculate
+      const calculation = await analyzeJournalEntryAsync(compositePrompt, appSettings)
+
+      // 6. Check if there are new questions and if turn is < 3
+      const hasNewQuestions = calculation.clarifying_questions && calculation.clarifying_questions.length > 0
+      if (hasNewQuestions && conversation.turn < 3) {
+        conversation.questions.push(calculation.clarifying_questions.join('\n'))
+        conversation.turn += 1
+      } else {
+        // Conversation finalized
+      }
+
+      const updatedRawText = originalText + "\n---\n" + JSON.stringify(conversation)
+
+      // 7. Save updated calculations back to Supabase/localStorage
+      const updatedFields = {
+        raw_text: updatedRawText,
+        calculated_kg: calculation.calculated_kg,
+        efficiency_score: calculation.efficiency_score,
+        category: calculation.category || null,
+        narrative: calculation.narrative || '',
+        causes: calculation.causes || [],
+        suggestions: calculation.suggestions || [],
+        motivation: calculation.motivation || ''
+      }
+
+      let updatedRow = null
+      if (dbConfigStatus === 'connected' && !String(logId).startsWith('mock-')) {
+        const { data, error } = await supabase
+          .from('journal_logs')
+          .update(updatedFields)
+          .eq('log_id', logId)
+          .select()
+
+        if (error) throw error
+        if (data && data[0]) {
+          updatedRow = data[0]
+        }
+      } else {
+        // LocalStorage fallback
+        updatedRow = {
+          ...log,
+          ...updatedFields
+        }
+        
+        // Update local logs in localStorage
+        const nextLogs = logs.map(item => item.log_id === logId ? updatedRow : item)
+        localStorage.setItem(`eco_logs_${user.id}`, JSON.stringify(nextLogs))
+      }
+
+      if (updatedRow) {
+        // Update local logs state
+        setLogs(prev => prev.map(item => item.log_id === logId ? updatedRow : item))
+      }
+
+    } catch (err) {
+      console.error('Q&A Recalculation failure:', err)
+      alert(err.message || 'Failed to recalculate footprint points.')
+    } finally {
+      setSubmittingAnswers(prev => ({ ...prev, [logId]: false }))
     }
   }
 
@@ -1512,22 +1597,7 @@ export default function Dashboard({
                     </div>
                   </div>
 
-                  {/* Card 2: Pledges */}
-                  <div className="glass-panel p-5 rounded-2xl border border-slate-100 flex flex-col gap-3">
-                    <div className="flex items-center gap-2">
-                      <div className="p-1.5 bg-green-500/10 rounded-lg">
-                        <Leaf className="w-4 h-4 text-green-600" />
-                      </div>
-                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider font-mono">Sync Pledges</h4>
-                    </div>
-                    <p className="text-[11.5px] text-slate-500 leading-relaxed">
-                      Commit to active habit changes to reduce emissions. Activating a pledge offsets a fixed rate from your log calculations and contributes to your ranking score.
-                    </p>
-                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-[10.5px] font-mono text-slate-500">
-                      <strong className="text-slate-700 block mb-0.5">Habit Offsets:</strong>
-                      Pledges like <span className="text-green-700 font-bold">Cold Water Wash</span> or <span className="text-green-700 font-bold">Meatless Lunch</span> reduce calculations.
-                    </div>
-                  </div>
+
 
                   {/* Card 3: Rank & Badges */}
                   <div className="glass-panel p-5 rounded-2xl border border-slate-100 flex flex-col gap-3">
@@ -1705,20 +1775,7 @@ export default function Dashboard({
                     <div className="relative w-24 h-24 flex items-center justify-center">
                       <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                         <circle cx="50" cy="50" r="42" fill="transparent" stroke="rgba(0,0,0,0.03)" strokeWidth="6" />
-                        {activePledgesCount > 0 && (
-                          <circle 
-                            cx="50" 
-                            cy="50" 
-                            r="42" 
-                            fill="transparent" 
-                            stroke="#86efac" 
-                            strokeWidth="5" 
-                            strokeDasharray="4 2" 
-                            strokeDashoffset={263.8 - (263.8 * Math.min(100, (projectedAvgFootprint / 20) * 100)) / 100}
-                            strokeLinecap="round" 
-                            className="transition-all duration-1000 ease-out"
-                          />
-                        )}
+
                         <circle 
                           cx="50" 
                           cy="50" 
@@ -1804,7 +1861,6 @@ export default function Dashboard({
                                 <li>Prefer rail, bus, or active transit over driving.</li>
                                 <li>Incorporate more plant-based meals into your diet.</li>
                                 <li>Lower thermostat usage & switch to LED bulbs.</li>
-                                <li>Adopt carbon pledges in the Sync panel.</li>
                               </ul>
                             </div>
                           </div>
@@ -2100,6 +2156,18 @@ export default function Dashboard({
                     const scorePercentage = rawScore !== null ? (isNewScore ? rawScore * 10 : rawScore) : 0
                     const theme = getThemeProps(rawScore)
 
+                    let originalText = log.raw_text || ''
+                    let conversation = { questions: [], answers: [], turn: 0 }
+                    if (log.raw_text && log.raw_text.includes('\n---\n')) {
+                      const parts = log.raw_text.split('\n---\n')
+                      originalText = parts[0]
+                      try {
+                        conversation = JSON.parse(parts[1])
+                      } catch (e) {
+                        console.error('Failed to parse conversation JSON', e)
+                      }
+                    }
+
                     return (
                       <motion.div
                         key={log.log_id}
@@ -2201,7 +2269,7 @@ export default function Dashboard({
 
                           {/* User raw text input */}
                           <p className="text-[13.5px] text-slate-600 leading-relaxed bg-slate-50/50 px-4 py-2.5 rounded-xl border border-slate-200/30 font-mono italic">
-                            “{log.raw_text}”
+                            “{originalText}”
                           </p>
 
                           {/* AI Warm Narrative */}
@@ -2214,6 +2282,76 @@ export default function Dashboard({
                               <p className="text-[14.5px] md:text-[15.5px] text-slate-700 leading-relaxed font-medium">
                                 {log.narrative}
                               </p>
+                            </div>
+                          )}
+
+                          {/* Q&A Clarifying conversation block */}
+                          {((conversation.questions && conversation.questions.length > 0) || (conversation.answers && conversation.answers.length > 0)) && (
+                            <div className="bg-emerald-500/[0.04] backdrop-blur-md border border-emerald-500/15 rounded-2xl p-4 space-y-3 shadow-sm transition-all duration-300">
+                              <div className="flex items-center gap-1.5 mb-1">
+                                <HelpCircle className={`w-3.5 h-3.5 ${theme.text}`} />
+                                <span className={`text-[11.5px] font-bold uppercase tracking-widest font-mono ${theme.text}`}>AI Follow-up Conversation ({conversation.turn}/3)</span>
+                              </div>
+                              
+                              {/* Conversation History */}
+                              <div className="space-y-3">
+                                {conversation.questions.map((qText, qIdx) => {
+                                  const ansText = conversation.answers[qIdx];
+                                  return (
+                                    <div key={qIdx} className="space-y-2 text-[13px] leading-relaxed">
+                                      <div className="bg-white/60 border border-slate-100 p-2.5 rounded-xl">
+                                        <span className="font-bold text-slate-500 block text-[10px] uppercase font-mono tracking-wider mb-0.5">AI Question:</span>
+                                        <p className="text-slate-800 whitespace-pre-line">{qText}</p>
+                                      </div>
+                                      {ansText && (
+                                        <div className="bg-emerald-500/[0.06] border border-emerald-500/10 p-2.5 rounded-xl ml-4">
+                                          <span className="font-bold text-emerald-600 block text-[10px] uppercase font-mono tracking-wider mb-0.5">Your Response:</span>
+                                          <p className="text-slate-700">{ansText}</p>
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+
+                              {/* Active Unanswered Question Input */}
+                              {conversation.questions.length > conversation.answers.length && (
+                                <div className="mt-3 space-y-2 border-t border-slate-200/50 pt-3">
+                                  <span className="text-[11px] font-bold text-slate-500 block uppercase font-mono tracking-wider">Provide Answers below to refine points:</span>
+                                  <textarea
+                                    id={`qa-input-${log.log_id}`}
+                                    className="w-full bg-white/70 border border-slate-200 rounded-xl p-2.5 text-[13px] text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-all font-sans"
+                                    placeholder="Type details here (e.g. type of fuel, distance, specific details)..."
+                                    rows="2"
+                                  />
+                                  <div className="flex justify-end">
+                                    <button
+                                      type="button"
+                                      disabled={submittingAnswers[log.log_id]}
+                                      onClick={() => {
+                                        const textarea = document.getElementById(`qa-input-${log.log_id}`);
+                                        if (textarea && textarea.value.trim()) {
+                                          handleAnswerClarification(log.log_id, textarea.value.trim());
+                                          textarea.value = '';
+                                        }
+                                      }}
+                                      className="bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-black px-4 py-2 rounded-xl flex items-center gap-1.5 shadow transition-all hover:scale-[1.02] active:scale-[0.98]"
+                                    >
+                                      {submittingAnswers[log.log_id] ? (
+                                        <>
+                                          <RefreshCw className="w-3 h-3 animate-spin" />
+                                          Recalculating...
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Check className="w-3.5 h-3.5" />
+                                          Recalculate Points
+                                        </>
+                                      )}
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           )}
 
@@ -2300,7 +2438,7 @@ export default function Dashboard({
                             </div>
                           )}
 
-                          {/* Eco Recommendations with Pledge Loop */}
+                          {/* Eco Recommendations */}
                           {log.suggestions && log.suggestions.length > 0 && (
                             <div className="space-y-3">
                               <div className="flex items-center gap-2">
@@ -2314,71 +2452,40 @@ export default function Dashboard({
                                   const detail = typeof s === 'object' ? (s.detail || '') : ''
                                   const steps = typeof s === 'object' && Array.isArray(s.steps) ? s.steps : []
                                   
-                                  const pledgeKey = `${log.log_id}-${idx}`
-                                  const isPledged = !!pledges[pledgeKey]
-
                                   return (
                                     <div 
                                       key={idx} 
-                                      className={`border rounded-2xl p-4 transition-all duration-300 relative overflow-hidden ${
-                                        isPledged 
-                                          ? 'bg-emerald-500/[0.04] border-emerald-500/30 shadow-md shadow-emerald-500/2'
-                                          : 'bg-white/40 border-slate-100 hover:border-slate-200'
-                                      }`}
+                                      className="bg-emerald-500/[0.06] backdrop-blur-md border border-emerald-500/15 rounded-2xl p-4 transition-all duration-300 hover:bg-emerald-500/[0.12] hover:border-emerald-500/30 hover:scale-[1.01] hover:shadow-lg hover:shadow-emerald-500/[0.03]"
                                     >
-                                      {isPledged && (
-                                        <div className="absolute top-0 bottom-0 left-0 w-1 bg-emerald-500" />
-                                      )}
-
                                       <div className="flex items-start justify-between gap-4">
                                         <div className="flex-1 min-w-0">
                                           <div className="flex items-center gap-2.5 mb-1.5">
-                                            <span className={`w-6 h-6 rounded-full text-[12px] font-black flex items-center justify-center shrink-0 ${
-                                              isPledged ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-700'
-                                            }`}>
+                                            <span className="w-6 h-6 rounded-full text-[12px] font-black flex items-center justify-center shrink-0 bg-emerald-600 text-white shadow-sm shadow-emerald-600/10">
                                               {idx + 1}
                                             </span>
-                                            <span className={`text-[15.5px] md:text-[16px] font-bold leading-snug ${isPledged ? 'text-emerald-900' : 'text-slate-800'}`}>
+                                            <span className="text-[15.5px] md:text-[16px] font-bold leading-snug text-emerald-900">
                                               {title}
                                             </span>
                                           </div>
                                           {detail && (
-                                            <p className="text-[13.5px] md:text-[14px] text-slate-600 leading-relaxed mb-2 pl-8 font-medium">
+                                            <p className="text-[13.5px] md:text-[14px] text-slate-700 leading-relaxed mb-2 pl-8 font-medium">
                                               {detail}
                                             </p>
                                           )}
                                           {steps.length > 0 && (
                                             <div className="flex flex-col gap-1.5 pl-8 mt-2.5">
                                               {steps.map((step, si) => (
-                                                <div key={si} className="flex items-start gap-2.5 text-[12.5px] md:text-[13px] text-slate-700 bg-white/50 border border-slate-200/30 px-3 py-1.5 rounded-xl">
-                                                  <span className={`font-black mt-0.5 shrink-0 ${isPledged ? 'text-emerald-500' : 'text-slate-400'}`}>›</span>
+                                                <div 
+                                                  key={si} 
+                                                  className="flex items-start gap-2.5 text-[12.5px] md:text-[13px] text-slate-700 bg-white/70 hover:bg-emerald-50/70 border border-emerald-500/10 hover:border-emerald-500/20 px-3 py-1.5 rounded-xl transition-all duration-200 hover:translate-x-0.5"
+                                                >
+                                                  <span className="font-black mt-0.5 shrink-0 text-emerald-500">›</span>
                                                   <span className="leading-snug">{step}</span>
                                                 </div>
                                               ))}
                                             </div>
                                           )}
                                         </div>
-
-                                        <button
-                                          onClick={() => handlePledgeToggle(log.log_id, idx)}
-                                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold font-mono transition-all duration-300 shrink-0 ${
-                                            isPledged 
-                                              ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/10'
-                                              : 'bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900'
-                                          }`}
-                                        >
-                                          {isPledged ? (
-                                            <>
-                                              <CheckCircle2 className="w-3.5 h-3.5" />
-                                              <span>Committed</span>
-                                            </>
-                                          ) : (
-                                            <>
-                                              <Plus className="w-3.5 h-3.5" />
-                                              <span>Pledge</span>
-                                            </>
-                                          )}
-                                        </button>
                                       </div>
                                     </div>
                                   )
@@ -2802,7 +2909,6 @@ export default function Dashboard({
                               <li>Prefer public or active transit over single-passenger cars.</li>
                               <li>Adopt a plant-based diet (less meat & dairy).</li>
                               <li>Reduce home energy & switch off idle appliances.</li>
-                              <li>Commit to habit pledges in the Sync panel.</li>
                             </ul>
                           </div>
                         </div>

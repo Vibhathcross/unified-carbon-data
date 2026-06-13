@@ -15,6 +15,7 @@ CRITICAL INSTRUCTIONS:
 - Practical Recommendations: Provide suggestions as simple, actionable steps towards a carbon-efficient path. The entry-level steps must require minimal effort or cost.
 - Motivation: End the report with a beautiful, humble, and encouraging sentence to inspire the user to take action.
 - Non-Carbon/Irrelevant Logs: If the daily log text has no information relevant to carbon footprint or emissions calculations (e.g. simple greetings like "hello", testing text, sleeping, reading a book, or unrelated statements), you MUST set "calculated_kg" to null and "efficiency_score" to null in the returned JSON object.
+- Clarifying Questions: If the daily log text lacks specific details that would make the carbon footprint estimate significantly more accurate (e.g. distance traveled, vehicle fuel type, type of meat eaten, appliance energy usage), and you need more details, you can ask at most 1-2 brief, highly relevant questions to clarify. List these questions as an array of strings in the "clarifying_questions" field. If no questions are needed, or if the user has already answered all questions in the conversation history, or if the turn limit (3 turns max) has been reached, you MUST set "clarifying_questions" to null or an empty array [].
 
 Respond ONLY with a raw JSON object (no markdown, no code fences) with EXACTLY these fields:
 
@@ -23,6 +24,8 @@ Respond ONLY with a raw JSON object (no markdown, no code fences) with EXACTLY t
   "efficiency_score": <eco-friendliness score between 1.0 and 10.0, higher means greener, or null if the log has no relevant carbon information>,
 
   "narrative": "<3-4 sentences of warm, non-judgmental, specific analysis of the text. Name each activity that contributed to emissions and explain its carbon impact in simple everyday language.>",
+
+  "clarifying_questions": [<an array of 1-2 clarifying questions if more details are needed for a precise calculation, or null/empty array if no questions are needed or if turn limit is reached>],
 
   "causes": [
     {
@@ -192,9 +195,9 @@ export async function analyzeJournalEntryAsync(text, settings = defaultSettings)
 
   const isDev = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
-  // If settings have empty or legacy system prompt, fall back to the new full default prompt
+  // If settings have empty, legacy, or missing clarifying questions instructions prompt, fall back to default
   let systemPrompt = conf.llm_system_prompt;
-  if (!systemPrompt || systemPrompt.trim() === '' || systemPrompt === OLD_DEFAULT_SYSTEM_PROMPT) {
+  if (!systemPrompt || systemPrompt.trim() === '' || !systemPrompt.includes('clarifying_questions')) {
     systemPrompt = defaultSettings.llm_system_prompt;
   }
 
@@ -351,6 +354,9 @@ export async function analyzeJournalEntryAsync(text, settings = defaultSettings)
       calculated_kg: calcKg !== null ? parseFloat(calcKg.toFixed(2)) : null,
       efficiency_score: effScore !== null ? parseFloat(Math.min(10, Math.max(1, effScore)).toFixed(1)) : null,
       narrative: typeof parsed.narrative === 'string' ? parsed.narrative.trim() : '',
+      clarifying_questions: Array.isArray(parsed.clarifying_questions)
+        ? parsed.clarifying_questions.map(q => typeof q === 'string' ? q.trim() : '').filter(Boolean)
+        : [],
       causes: Array.isArray(parsed.causes)
         ? parsed.causes.slice(0, 8).map(c => ({
             activity: String(c.activity || '').trim(),
