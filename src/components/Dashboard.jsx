@@ -1930,17 +1930,34 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
                 </div>
 
                 {/* Aether Card button */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowCertificate(true)
-                    setShowProfileDropdown(false)
-                  }}
-                  className="w-full p-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white font-mono font-bold text-[9px] tracking-wider flex items-center justify-center gap-1.5 cursor-pointer shadow-md active:scale-95 transition-all"
-                >
-                  <Award className="w-3.5 h-3.5 text-emerald-100" />
-                  CLAIM AETHER CARD
-                </button>
+                {uniqueDaysCount >= 5 ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowCertificate(true)
+                      setShowProfileDropdown(false)
+                    }}
+                    className="w-full p-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white font-mono font-bold text-[9px] tracking-wider flex items-center justify-center gap-1.5 cursor-pointer shadow-md active:scale-95 transition-all"
+                  >
+                    <Award className="w-3.5 h-3.5 text-emerald-100" />
+                    CLAIM AETHER CARD
+                  </button>
+                ) : (
+                  <div className="relative group">
+                    <div className="w-full p-2.5 rounded-xl bg-slate-200/80 text-slate-400 font-mono font-bold text-[9px] tracking-wider flex items-center justify-center gap-1.5 cursor-not-allowed border border-slate-300/60 select-none">
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V7.5a4.5 4.5 0 00-9 0v3m-1.5 0h12a1.5 1.5 0 011.5 1.5v7a1.5 1.5 0 01-1.5 1.5H6A1.5 1.5 0 014.5 19v-7A1.5 1.5 0 016 10.5z" />
+                      </svg>
+                      AETHER CARD LOCKED
+                    </div>
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-52 bg-slate-900/95 backdrop-blur text-white text-[10px] rounded-xl px-3 py-2.5 shadow-xl pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-50 leading-relaxed text-center font-sans">
+                      <div className="font-bold text-emerald-400 mb-1 font-mono text-[9px] uppercase tracking-wider">Certificate Locked</div>
+                      Log your footprint for <span className="font-bold text-white">{5 - uniqueDaysCount} more day{5 - uniqueDaysCount !== 1 ? 's' : ''}</span> to unlock your Aether Card.
+                      <div className="text-slate-400 mt-1 text-[9px]">({uniqueDaysCount}/5 days logged)</div>
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-slate-900/95" />
+                    </div>
+                  </div>
+                )}
 
                 <div className="border-t border-slate-100 my-1" />
 
