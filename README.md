@@ -55,10 +55,10 @@ The interface is built to deliver a premium, high-fidelity experience:
 - **Reactive Rank Synchronization**: User ranks are automatically updated in real-time as the 5-day rolling mean crosses threshold boundaries.
 
 ### 🎖️ 4. Dynamic Sync Rank Badges
-- **Carbon Beginner** (Avg < 4.0): default amber rank with a Flame icon.
-- **Sustainability Seeker** (Avg >= 4.0): blue rank with a Globe icon.
+- **Carbon Beginner** (Avg < 4.0): default yellow rank with a Flame icon.
+- **Sustainability Seeker** (Avg >= 4.0): orange rank with a Globe icon.
 - **Earth Guardian** (Avg >= 7.0): green rank with a Trees icon.
-- **Eco Vanguard** (Avg >= 9.0): teal metallic rank with an Award icon.
+- **Eco Vanguard** (Avg >= 9.0): blue rank with an Award icon.
 
 ### 🖼️ 5. Personalized Aether Cards
 - **Dynamic Themes**: Border styling, custom appreciate-texts, metallic ribbons, and background gradients automatically adapt to the user's current rank.

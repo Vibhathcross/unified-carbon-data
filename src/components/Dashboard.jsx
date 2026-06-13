@@ -1311,7 +1311,7 @@ export default function Dashboard({
         return { label: 'Sustainability Seeker', class: 'badge-sustainability-seeker text-white', icon: <Globe className="w-4.5 h-4.5" /> }
       case 'Carbon Beginner':
       default:
-        return { label: 'Carbon Beginner', class: 'badge-carbon-beginner text-amber-950', icon: <Flame className="w-4.5 h-4.5" /> }
+        return { label: 'Carbon Beginner', class: 'badge-carbon-beginner text-yellow-950', icon: <Flame className="w-4.5 h-4.5" /> }
     }
   }
 
@@ -1346,11 +1346,11 @@ export default function Dashboard({
 
   const rankStyles = {
     'Eco Vanguard': {
-      border: 'border-teal-400/30 bg-gradient-to-br from-teal-500/[0.04] to-teal-400/[0.01]',
-      glow: 'from-teal-500/10 to-transparent',
-      avatarBg: 'from-teal-500/15 to-teal-400/5 border-teal-500/20 text-teal-700',
-      labelColor: 'text-teal-800',
-      shadow: 'shadow-teal-500/[0.03]'
+      border: 'border-blue-400/30 bg-gradient-to-br from-blue-500/[0.04] to-blue-400/[0.01]',
+      glow: 'from-blue-500/10 to-transparent',
+      avatarBg: 'from-blue-500/15 to-blue-400/5 border-blue-500/20 text-blue-700',
+      labelColor: 'text-blue-800',
+      shadow: 'shadow-blue-500/[0.03]'
     },
     'Earth Guardian': {
       border: 'border-green-400/30 bg-gradient-to-br from-green-500/[0.04] to-green-400/[0.01]',
@@ -1360,18 +1360,18 @@ export default function Dashboard({
       shadow: 'shadow-green-500/[0.03]'
     },
     'Sustainability Seeker': {
-      border: 'border-blue-400/30 bg-gradient-to-br from-blue-500/[0.04] to-blue-400/[0.01]',
-      glow: 'from-blue-500/10 to-transparent',
-      avatarBg: 'from-blue-500/15 to-blue-400/5 border-blue-500/20 text-blue-700',
-      labelColor: 'text-blue-800',
-      shadow: 'shadow-blue-500/[0.03]'
+      border: 'border-orange-400/30 bg-gradient-to-br from-orange-500/[0.04] to-orange-400/[0.01]',
+      glow: 'from-orange-500/10 to-transparent',
+      avatarBg: 'from-orange-500/15 to-orange-400/5 border-orange-500/20 text-orange-700',
+      labelColor: 'text-orange-800',
+      shadow: 'shadow-orange-500/[0.03]'
     },
     'Carbon Beginner': {
-      border: 'border-amber-400/30 bg-gradient-to-br from-amber-500/[0.04] to-amber-400/[0.01]',
-      glow: 'from-amber-500/10 to-transparent',
-      avatarBg: 'from-amber-500/15 to-amber-400/5 border-amber-500/20 text-amber-700',
-      labelColor: 'text-amber-800',
-      shadow: 'shadow-amber-500/[0.03]'
+      border: 'border-yellow-400/30 bg-gradient-to-br from-yellow-500/[0.04] to-yellow-400/[0.01]',
+      glow: 'from-yellow-500/10 to-transparent',
+      avatarBg: 'from-yellow-500/15 to-yellow-400/5 border-yellow-500/20 text-yellow-700',
+      labelColor: 'text-yellow-800',
+      shadow: 'shadow-yellow-500/[0.03]'
     }
   }
 
@@ -1792,10 +1792,10 @@ export default function Dashboard({
                             <div>
                               <span className="font-bold text-white block mb-0.5">Rank Brackets:</span>
                               <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 mt-0.5 text-[10px] font-mono">
-                                <span className="text-teal-400">9.0+ : Eco Vanguard</span>
+                                <span className="text-sky-400">9.0+ : Eco Vanguard</span>
                                 <span className="text-emerald-400">7.0+ : Earth Guardian</span>
-                                <span className="text-sky-400">4.0+ : Sustainability Seeker</span>
-                                <span className="text-amber-400">1.0+ : Carbon Beginner</span>
+                                <span className="text-orange-400">4.0+ : Sustainability Seeker</span>
+                                <span className="text-yellow-400">1.0+ : Carbon Beginner</span>
                               </div>
                             </div>
                             <div>
@@ -2790,10 +2790,10 @@ export default function Dashboard({
                           <div>
                             <span className="font-bold text-white block mb-0.5">Rank Brackets:</span>
                             <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 mt-0.5 text-[10px] font-mono">
-                              <span className="text-teal-400">9.0+ : Eco Vanguard</span>
+                              <span className="text-sky-400">9.0+ : Eco Vanguard</span>
                               <span className="text-emerald-400">7.0+ : Earth Guardian</span>
-                              <span className="text-sky-400">4.0+ : Sustainability Seeker</span>
-                              <span className="text-amber-400">1.0+ : Carbon Beginner</span>
+                              <span className="text-orange-400">4.0+ : Sustainability Seeker</span>
+                              <span className="text-yellow-400">1.0+ : Carbon Beginner</span>
                             </div>
                           </div>
                           <div>
