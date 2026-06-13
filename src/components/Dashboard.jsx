@@ -1288,18 +1288,13 @@ export default function Dashboard({
 
     const recipientName = profile?.display_name || user?.display_name || 'Eco Guardian'
 
-    // Capture the exact HTML element as a high-resolution PNG image
-    toPng(node, { 
-      cacheBust: true, 
-      pixelRatio: 3, // Very high resolution 3x scale for crisp printing
-      width: 800,
-      height: 566,
-      style: {
-        width: '800px',
-        height: '566px',
-        transform: 'scale(1)',
-        transformOrigin: 'top left',
-      }
+    // Capture at the card's actual rendered size — no width/height override.
+    // This keeps all clamp() and vw units consistent with the card dimensions,
+    // so borders, decorations and ribbon stay perfectly aligned on any device.
+    // pixelRatio: 4 ensures a crisp high-resolution PNG regardless of screen size.
+    toPng(node, {
+      cacheBust: true,
+      pixelRatio: 4,
     })
       .then((dataUrl) => {
         const link = document.createElement('a')
