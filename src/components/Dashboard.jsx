@@ -2371,32 +2371,9 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="mt-4 p-4 rounded-xl bg-slate-50 border border-slate-200 font-mono text-xs overflow-hidden"
+                  className="mt-4 py-8 flex items-center justify-center overflow-hidden"
                 >
-                  <div className="text-green-700 font-bold mb-2">RUNNING SYNC OPERATIONS:</div>
-                  <div className="space-y-1.5">
-                    {syncSteps.map((step, idx) => (
-                      <div 
-                        key={idx} 
-                        className={`transition-colors duration-300 flex items-center gap-2 ${
-                          idx < currentStepIndex 
-                            ? 'text-green-600 font-bold' 
-                            : idx === currentStepIndex 
-                              ? 'text-emerald-600 font-bold' 
-                              : 'text-slate-400'
-                        }`}
-                      >
-                        {idx < currentStepIndex ? (
-                          <CheckCircle2 className="w-3.5 h-3.5 text-green-500 shrink-0" />
-                        ) : idx === currentStepIndex ? (
-                          <RefreshCw className="w-3.5 h-3.5 text-emerald-500 animate-spin shrink-0" />
-                        ) : (
-                          <div className="w-3.5 h-3.5 rounded-full border border-slate-300 shrink-0" />
-                        )}
-                        <span>{step}</span>
-                      </div>
-                    ))}
-                  </div>
+                  <div className="mover"></div>
                 </motion.div>
               )}
               {submitError && (
@@ -3418,31 +3395,8 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
 
               {/* Progress log in bottom sheet */}
               {submitting && (
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 font-mono text-[11px]">
-                  <div className="text-green-700 font-bold mb-2">RUNNING SYNC OPERATIONS:</div>
-                  <div className="space-y-1.5">
-                    {syncSteps.map((step, idx) => (
-                      <div 
-                        key={idx} 
-                        className={`flex items-center gap-2 ${
-                          idx < currentStepIndex 
-                            ? 'text-green-600 font-bold' 
-                            : idx === currentStepIndex 
-                              ? 'text-emerald-600 font-bold' 
-                              : 'text-slate-400'
-                        }`}
-                      >
-                        {idx < currentStepIndex ? (
-                          <CheckCircle2 className="w-3.5 h-3.5 text-green-500 shrink-0" />
-                        ) : idx === currentStepIndex ? (
-                          <RefreshCw className="w-3.5 h-3.5 text-emerald-500 animate-spin shrink-0" />
-                        ) : (
-                          <div className="w-3.5 h-3.5 rounded-full border border-slate-300 shrink-0" />
-                        )}
-                        <span>{step}</span>
-                      </div>
-                    ))}
-                  </div>
+                <div className="py-8 flex items-center justify-center">
+                  <div className="mover"></div>
                 </div>
               )}
               {submitError && (
