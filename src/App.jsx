@@ -92,7 +92,7 @@ export default function App() {
 
     // 2. Try fetching from server (works on localhost)
     try {
-      const res = await fetch('/admin_config.json')
+      const res = await fetch(`${import.meta.env.BASE_URL}admin_config.json`)
       if (res.ok) {
         const data = await res.json()
         if (!data.admin) throw new Error('This device is not configured as an admin device.')
@@ -203,7 +203,7 @@ export default function App() {
 
       // 3. Fallback: try fetching /admin_config.json from server (works on localhost)
       try {
-        const res = await fetch('/admin_config.json')
+        const res = await fetch(`${import.meta.env.BASE_URL}admin_config.json`)
         if (res.ok) {
           const adminData = await res.json()
           const booted = await bootWithAdminData(adminData)

@@ -2120,7 +2120,7 @@ export default function Dashboard({
                 {/* Left Column: Image */}
                 <div style={{ transform: 'translateZ(35px)' }} className="col-span-1 md:col-span-5 w-full h-44 md:h-48 rounded-2xl overflow-hidden border border-green-100/20 bg-slate-50/50">
                   <img 
-                    src="/images/forest_canopy.png" 
+                    src={`${import.meta.env.BASE_URL}images/forest_canopy.png`} 
                     alt="Forest Sequestration" 
                     className="w-full h-full object-cover transform hover:scale-105 transition-transform duration-500"
                   />
@@ -2154,7 +2154,7 @@ export default function Dashboard({
                 {/* Left Column: Image */}
                 <div style={{ transform: 'translateZ(35px)' }} className="col-span-1 md:col-span-5 w-full h-44 md:h-48 rounded-2xl overflow-hidden border border-green-100/20 bg-slate-50/50">
                   <img 
-                    src="/images/eco_transit.png" 
+                    src={`${import.meta.env.BASE_URL}images/eco_transit.png`} 
                     alt="Transit Coefficients" 
                     className="w-full h-full object-cover transform hover:scale-105 transition-transform duration-500"
                   />
@@ -2188,7 +2188,7 @@ export default function Dashboard({
                 {/* Left Column: Image */}
                 <div style={{ transform: 'translateZ(35px)' }} className="col-span-1 md:col-span-5 w-full h-44 md:h-48 rounded-2xl overflow-hidden border border-green-100/20 bg-slate-50/50">
                   <img 
-                    src="/images/green_diet.png" 
+                    src={`${import.meta.env.BASE_URL}images/green_diet.png`} 
                     alt="Methane Sequestration" 
                     className="w-full h-full object-cover transform hover:scale-105 transition-transform duration-500"
                   />
@@ -2222,7 +2222,7 @@ export default function Dashboard({
                 {/* Left Column: Image */}
                 <div style={{ transform: 'translateZ(35px)' }} className="col-span-1 md:col-span-5 w-full h-44 md:h-48 rounded-2xl overflow-hidden border border-green-100/20 bg-slate-50/50">
                   <img 
-                    src="/images/ocean_sink.png" 
+                    src={`${import.meta.env.BASE_URL}images/ocean_sink.png`} 
                     alt="Ocean Buffer Sinks" 
                     className="w-full h-full object-cover transform hover:scale-105 transition-transform duration-500"
                   />
@@ -2256,7 +2256,7 @@ export default function Dashboard({
                 {/* Left Column: Image */}
                 <div style={{ transform: 'translateZ(35px)' }} className="col-span-1 md:col-span-5 w-full h-44 md:h-48 rounded-2xl overflow-hidden border border-green-100/20 bg-slate-50/50">
                   <img 
-                    src="/images/renewable_grid.png" 
+                    src={`${import.meta.env.BASE_URL}images/renewable_grid.png`} 
                     alt="Clean Utility Grid" 
                     className="w-full h-full object-cover transform hover:scale-105 transition-transform duration-500"
                   />
@@ -2290,7 +2290,7 @@ export default function Dashboard({
                 {/* Left Column: Image */}
                 <div style={{ transform: 'translateZ(35px)' }} className="col-span-1 md:col-span-5 w-full h-44 md:h-48 rounded-2xl overflow-hidden border border-green-100/20 bg-slate-50/50">
                   <img 
-                    src="/images/soil_growth.png" 
+                    src={`${import.meta.env.BASE_URL}images/soil_growth.png`} 
                     alt="Soil Sequestration" 
                     className="w-full h-full object-cover transform hover:scale-105 transition-transform duration-500"
                   />
@@ -2324,7 +2324,7 @@ export default function Dashboard({
                 {/* Left Column: Image */}
                 <div style={{ transform: 'translateZ(35px)' }} className="col-span-1 md:col-span-5 w-full h-44 md:h-48 rounded-2xl overflow-hidden border border-green-100/20 bg-slate-50/50">
                   <img 
-                    src="/images/eco_hardware.png" 
+                    src={`${import.meta.env.BASE_URL}images/eco_hardware.png`} 
                     alt="Supply-Chain Loads" 
                     className="w-full h-full object-cover transform hover:scale-105 transition-transform duration-500"
                   />
@@ -2358,7 +2358,7 @@ export default function Dashboard({
                 {/* Left Column: Image */}
                 <div style={{ transform: 'translateZ(35px)' }} className="col-span-1 md:col-span-5 w-full h-44 md:h-48 rounded-2xl overflow-hidden border border-green-100/20 bg-slate-50/50">
                   <img 
-                    src="/images/climate_globe.png" 
+                    src={`${import.meta.env.BASE_URL}images/climate_globe.png`} 
                     alt="Greenhouse Budgets" 
                     className="w-full h-full object-cover transform hover:scale-105 transition-transform duration-500"
                   />
