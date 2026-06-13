@@ -2980,10 +2980,10 @@ export default function Dashboard({
                     />
                   </div>
 
-                  {/* â”€â”€ System Prompt override â”€â”€ */}
+                  {/* ── System Prompt override ── */}
                   <div className="space-y-1.5">
                     <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest font-mono">
-                      System Prompt <span className="normal-case text-slate-400 font-normal">(instruction override)</span>
+                      System Prompt
                     </label>
                     <textarea
                       placeholder="You are an expert environmental scientist and sustainability advisor. You analyze daily activity logs and produce detailed, insightful carbon footprint reports."
