@@ -47,14 +47,7 @@ export default function App() {
 
   const loadAppSettings = async () => {
     try {
-      // 1. Always prefer localStorage first — it's written immediately on save
-      const localRaw = localStorage.getItem('aether_app_settings')
-      if (localRaw) {
-        const localParsed = JSON.parse(localRaw)
-        setAppSettings(localParsed)
-        return
-      }
-      // 2. Only fall back to Supabase if localStorage is empty (first run)
+      // Supabase is the single source of truth — always fetch fresh
       const { data, error } = await supabase
         .from('app_settings')
         .select('*')
@@ -62,8 +55,6 @@ export default function App() {
         .single()
       if (!error && data) {
         setAppSettings(data)
-        // Cache it so future loads use localStorage
-        localStorage.setItem('aether_app_settings', JSON.stringify(data))
       }
     } catch (err) {
       console.error('Error loading app settings:', err)

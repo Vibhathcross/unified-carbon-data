@@ -392,29 +392,27 @@ export default function Dashboard({
       updated_at: new Date().toISOString()
     }
 
-    // 1. Write to localStorage FIRST — this is the source of truth
-    localStorage.setItem('aether_app_settings', JSON.stringify(updated))
-
-    // 2. Push new settings to App state immediately (no Supabase re-fetch)
+    // Apply to App state immediately (optimistic update — UI stays responsive)
     if (onSettingsApplied) onSettingsApplied(updated)
 
-    // 3. Try to persist to Supabase in background (non-blocking)
+    // Save to Supabase — single source of truth, no local fallback
     try {
       const { error } = await supabase
         .from('app_settings')
         .upsert([updated])
+
       if (error) {
-        console.warn('Supabase settings upsert failed (saved locally):', error)
-        setSettingsStatus('✓ Applied locally')
+        console.error('Supabase settings upsert failed:', error)
+        setSettingsStatus('✗ Failed to save — check DB connection')
       } else {
-        setSettingsStatus('✓ Settings saved & applied!')
+        setSettingsStatus('✓ Saved & synced to all users!')
       }
     } catch (err) {
-      console.warn('Supabase unreachable, settings saved locally:', err)
-      setSettingsStatus('✓ Applied locally')
+      console.error('Supabase unreachable:', err)
+      setSettingsStatus('✗ Failed to save — Supabase unreachable')
     } finally {
       setSavingSettings(false)
-      setTimeout(() => setSettingsStatus(''), 3000)
+      setTimeout(() => setSettingsStatus(''), 4000)
     }
   }
   // Fetch models dynamically from selected provider API (with proxy fallback to bypass browser CORS)
@@ -1099,18 +1097,8 @@ export default function Dashboard({
     
     let calculation
     try {
-      // Always use the freshest settings from localStorage (saved by handleSaveSettings),
-      // falling back to the appSettings prop if localStorage is empty/stale.
-      let activeSettings = appSettings
-      try {
-        const localRaw = localStorage.getItem('aether_app_settings')
-        if (localRaw) {
-          const localParsed = JSON.parse(localRaw)
-          // Use local settings if they are newer or if prop is stale (e.g. still has old provider)
-          activeSettings = localParsed
-        }
-      } catch (_) {}
-      calculation = await analyzeJournalEntryAsync(journalText, activeSettings)
+      // appSettings is always fresh from Supabase (loaded on boot) — use it directly
+      calculation = await analyzeJournalEntryAsync(journalText, appSettings)
     } catch (err) {
       console.error('Linguistic calculation exception:', err)
       setSubmitError(err.message || 'LLM connection error. Sync aborted.')
