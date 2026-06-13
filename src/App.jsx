@@ -12,34 +12,14 @@ export default function App() {
   const [session, setSession] = useState(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [isBooting, setIsBooting] = useState(true)
-  const [bootStep, setBootStep] = useState(0)
-
-  const bootMessages = [
-    'INITIATING SECURE AETHER NET...',
-    'ESTABLISHING ENCRYPTED DATAPATH...',
-    'COMPILING DECENTRALIZED CO2 LEDGER...',
-    'AETHER SYNC PROTOCOLS ONLINE'
-  ]
-
-  // Boot sequence animation trigger
+  // Boot sequence animation timer
   useEffect(() => {
-    let interval
     if (isBooting) {
-      interval = setInterval(() => {
-        setBootStep((prev) => {
-          if (prev >= bootMessages.length - 1) {
-            clearInterval(interval)
-            // End boot sequence with slight delay for satisfaction
-            setTimeout(() => {
-              setIsBooting(false)
-            }, 800)
-            return prev
-          }
-          return prev + 1
-        })
-      }, 500)
+      const timer = setTimeout(() => {
+        setIsBooting(false)
+      }, 1500)
+      return () => clearTimeout(timer)
     }
-    return () => clearInterval(interval)
   }, [isBooting])
 
   const [adminConfig, setAdminConfig] = useState(null)
@@ -305,27 +285,6 @@ export default function App() {
               <p className="text-xs text-green-600 font-mono tracking-[0.25em] font-bold uppercase mb-8">
                 Carbon Sync Matrix
               </p>
-
-              {/* Console log outputs */}
-              <div className="w-full bg-slate-50/90 backdrop-blur-md rounded-2xl p-4 border border-slate-200/80 font-mono text-[10px] text-left space-y-2 h-32 overflow-hidden shadow-xl relative">
-                <div className="absolute top-2 right-4 flex gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-red-400/60" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400/60" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-400/60" />
-                </div>
-                
-                <div className="text-slate-400 font-bold mb-1">SYSTEM_BOOT_LOG:</div>
-                <div className="space-y-1">
-                  {bootMessages.slice(0, bootStep + 1).map((msg, index) => (
-                    <div 
-                      key={index}
-                      className={index === bootStep ? 'text-green-600 font-bold' : 'text-slate-500'}
-                    >
-                      &gt; {msg}
-                    </div>
-                  ))}
-                </div>
-              </div>
             </div>
           </motion.div>
         ) : authLoading ? (
