@@ -149,9 +149,9 @@ create table journal_logs (
   log_id uuid default gen_random_uuid() primary key,
   user_id uuid references auth.users on delete cascade not null,
   raw_text text not null,
-  calculated_kg numeric(10, 2) not null,
-  efficiency_score numeric(5, 2) not null,
-  category text not null,
+  calculated_kg numeric(10, 2), -- nullable for irrelevant logs
+  efficiency_score numeric(5, 2), -- nullable for irrelevant logs
+  category text, -- nullable for irrelevant logs
   suggestions jsonb,
   created_at timestamp with time zone default now() not null
 );

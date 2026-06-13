@@ -1108,6 +1108,29 @@ export default function Dashboard({
     mixed: '#8b5cf6'           // violet-500
   }
 
+  const formatDatabaseError = (err) => {
+    const msg = err?.message || String(err)
+    if (msg.includes('violates not-null constraint') && (msg.includes('calculated_kg') || msg.includes('efficiency_score') || msg.includes('category'))) {
+      return (
+        <div className="space-y-2 text-left font-sans">
+          <div className="font-bold text-rose-950">Database Schema Mismatch detected!</div>
+          <div className="text-[11px] leading-relaxed text-rose-800">
+            Your Supabase table columns have a <code className="bg-rose-100 px-1 py-0.5 rounded font-mono text-[10px]">NOT NULL</code> constraint, which prevents logging non-carbon/irrelevant logs like "hello" (which resolve to null emissions).
+          </div>
+          <div className="text-[11px] font-semibold text-rose-950 mt-1">
+            To resolve this, please run the following SQL statements in your Supabase SQL Editor:
+          </div>
+          <pre className="bg-rose-950/90 text-rose-100/90 p-3 rounded-xl text-[10.5px] font-mono select-all overflow-x-auto whitespace-pre-wrap leading-relaxed shadow-inner">
+{`alter table journal_logs alter column calculated_kg drop not null;
+alter table journal_logs alter column efficiency_score drop not null;
+alter table journal_logs alter column category drop not null;`}
+          </pre>
+        </div>
+      )
+    }
+    return msg
+  }
+
   // Handle Journal Submission
   const handleLogSubmit = async (e) => {
     e?.preventDefault()
@@ -1216,7 +1239,7 @@ export default function Dashboard({
       setShowMobileEntrySheet(false)
     } catch (err) {
       console.error('Error submitting log:', err)
-      setSubmitError(err.message || 'Failed to synchronize log.')
+      setSubmitError(formatDatabaseError(err))
     } finally {
       setSubmitting(false)
       setCurrentStepIndex(-1)
@@ -1321,7 +1344,7 @@ Current Turn: ${activeConversation.turn + 1} of 3 (Max 3 turns. If turn is 3, yo
       }
     } catch (err) {
       console.error('Conversation recalculation failure:', err)
-      setSubmitError(err.message || 'Recalculation error. Please try again.')
+      setSubmitError(formatDatabaseError(err))
     } finally {
       setSubmittingConversation(false)
     }
@@ -1344,7 +1367,7 @@ Current Turn: ${activeConversation.turn + 1} of 3 (Max 3 turns. If turn is 3, yo
       setShowMobileEntrySheet(false)
     } catch (err) {
       console.error('Conversation skip failure:', err)
-      setSubmitError(err.message || 'Failed to save log.')
+      setSubmitError(formatDatabaseError(err))
     } finally {
       setSubmittingConversation(false)
     }
