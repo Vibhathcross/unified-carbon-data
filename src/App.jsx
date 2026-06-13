@@ -276,7 +276,7 @@ export default function App() {
             initial={{ opacity: 1 }}
             exit={{ opacity: 0, filter: 'blur(10px)' }}
             transition={{ duration: 0.8, ease: 'easeInOut' }}
-            className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white p-4 relative"
+            className="fixed inset-0 z-50 flex flex-col items-center justify-center p-4"
           >
             {/* Dynamic visual grid */}
             <div className="absolute inset-0 scanline opacity-[0.015] pointer-events-none" />
