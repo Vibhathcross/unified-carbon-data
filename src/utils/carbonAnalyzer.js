@@ -14,12 +14,13 @@ CRITICAL INSTRUCTIONS:
 - Human Mindset: Respect that people have busy lives, budget limits, habits, and comfort zones. Never make the user feel guilty or overwhelmed.
 - Practical Recommendations: Provide suggestions as simple, actionable steps towards a carbon-efficient path. The entry-level steps must require minimal effort or cost.
 - Motivation: End the report with a beautiful, humble, and encouraging sentence to inspire the user to take action.
+- Non-Carbon/Irrelevant Logs: If the daily log text has no information relevant to carbon footprint or emissions calculations (e.g. simple greetings like "hello", testing text, sleeping, reading a book, or unrelated statements), you MUST set "calculated_kg" to null and "efficiency_score" to null in the returned JSON object.
 
 Respond ONLY with a raw JSON object (no markdown, no code fences) with EXACTLY these fields:
 
 {
-  "calculated_kg": <total estimated kg CO2 equivalent as a precise number based on the activities in the text>,
-  "efficiency_score": <eco-friendliness score between 1.0 and 10.0, higher means greener>,
+  "calculated_kg": <total estimated kg CO2 equivalent as a precise number based on the activities in the text, or null if the log has no relevant carbon information>,
+  "efficiency_score": <eco-friendliness score between 1.0 and 10.0, higher means greener, or null if the log has no relevant carbon information>,
 
   "narrative": "<3-4 sentences of warm, non-judgmental, specific analysis of the text. Name each activity that contributed to emissions and explain its carbon impact in simple everyday language.>",
 
@@ -331,10 +332,24 @@ export async function analyzeJournalEntryAsync(text, settings = defaultSettings)
       return fallback;
     };
 
+    const getFloatOrNull = (val) => {
+      if (val === null || val === undefined) return null;
+      if (typeof val === 'number') return val;
+      if (typeof val === 'string') {
+        const clean = val.replace(/[^\d.-]/g, '');
+        const num = parseFloat(clean);
+        return isNaN(num) ? null : num;
+      }
+      return null;
+    };
+
+    const calcKg = getFloatOrNull(parsed.calculated_kg);
+    const effScore = getFloatOrNull(parsed.efficiency_score);
+
     // Validate fields with strict sanitisation
     return {
-      calculated_kg: parseFloat(getFloat(parsed.calculated_kg, 3.5).toFixed(2)),
-      efficiency_score: parseFloat(Math.min(10, Math.max(1, getFloat(parsed.efficiency_score, 5.0))).toFixed(1)),
+      calculated_kg: calcKg !== null ? parseFloat(calcKg.toFixed(2)) : null,
+      efficiency_score: effScore !== null ? parseFloat(Math.min(10, Math.max(1, effScore)).toFixed(1)) : null,
       narrative: typeof parsed.narrative === 'string' ? parsed.narrative.trim() : '',
       causes: Array.isArray(parsed.causes)
         ? parsed.causes.slice(0, 8).map(c => ({

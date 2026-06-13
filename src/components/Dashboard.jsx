@@ -177,6 +177,21 @@ function TiltCard({ children, className = '' }) {
 }
 
 const getThemeProps = (score) => {
+  if (score === null || score === undefined || isNaN(score)) {
+    return {
+      accent: 'slate',
+      label: '⚪ No Carbon Data',
+      bgGrad: 'from-slate-500/[0.03] to-slate-500/[0.01]',
+      border: 'border-slate-300/20 hover:border-slate-300/40',
+      text: 'text-slate-600',
+      badge: 'bg-slate-100 text-slate-600 border-slate-200/50',
+      glow: 'shadow-slate-500/5',
+      glowColor: 'bg-slate-400',
+      barColor: 'bg-slate-400',
+      motivationBg: 'from-slate-800 to-slate-900',
+      accentLight: '#94a3b8'
+    }
+  }
   const normScore = score <= 10 ? score * 10 : score;
   if (normScore >= 80) {
     return {
@@ -1024,16 +1039,17 @@ export default function Dashboard({
     const dateBuckets = {} // { 'YYYY-MM-DD': { scoreSum: 0, scoreCount: 0, carbonSum: 0 } }
     
     logs.forEach(log => {
-      const ts = log.created_at || log.timestamp || new Date().toISOString()
-      const dateStr = ts.substring(0, 10) // YYYY-MM-DD
-      
+      if (log.calculated_kg === null || log.calculated_kg === undefined || log.efficiency_score === null || log.efficiency_score === undefined) {
+        return
+      }
+      const dateStr = new Date(log.created_at).toISOString().split('T')[0]
       let rawScore = Number(log.efficiency_score)
       if (isNaN(rawScore)) rawScore = 5.0
       // Normalize: if score is > 10, it's out of 100. Convert to 1-10 range.
       const score = rawScore > 10 ? rawScore / 10 : rawScore
       
       const carbon = Number(log.calculated_kg || log.carbon_mass_kg || 0)
-
+      
       if (!dateBuckets[dateStr]) {
         dateBuckets[dateStr] = { scoreSum: 0, scoreCount: 0, carbonSum: 0 }
       }
@@ -1054,8 +1070,8 @@ export default function Dashboard({
     // Sort: newest date to oldest date (descending)
     dailyData.sort((a, b) => b.date.localeCompare(a.date))
 
-    // Sliding window cut: maximum length of 10 days
-    const windowDays = dailyData.slice(0, 10)
+    // Sliding window cut: maximum length of 5 days
+    const windowDays = dailyData.slice(0, 5)
     const uniqueDaysCount = windowDays.length
 
     let rollingAverage = 0
@@ -1082,8 +1098,9 @@ export default function Dashboard({
 
   // Compute metrics
   const logsCount = logs.length
-  const totalKg = logs.reduce((acc, log) => acc + Number(log.calculated_kg), 0)
-  const averageFootprint = logsCount > 0 ? (totalKg / logsCount) : 0
+  const carbonLogsCount = logs.filter(log => log.calculated_kg !== null && log.calculated_kg !== undefined).length
+  const totalKg = logs.reduce((acc, log) => acc + (log.calculated_kg !== null && log.calculated_kg !== undefined ? Number(log.calculated_kg) : 0), 0)
+  const averageFootprint = carbonLogsCount > 0 ? (totalKg / carbonLogsCount) : 0
   const averageEfficiency = rollingAverage * 10 // scale to 0-100% for progress rings and percentages
 
   // Calculate pledges and projected reductions
@@ -1093,11 +1110,13 @@ export default function Dashboard({
 
   // Category breakdown
   const categoryCounts = logs.reduce((acc, log) => {
+    if (log.calculated_kg === null || log.calculated_kg === undefined) return acc
     acc[log.category] = (acc[log.category] || 0) + 1
     return acc
   }, {})
 
   const categoryEmissions = logs.reduce((acc, log) => {
+    if (log.calculated_kg === null || log.calculated_kg === undefined) return acc
     acc[log.category] = (acc[log.category] || 0) + Number(log.calculated_kg)
     return acc
   }, {})
@@ -1519,9 +1538,9 @@ export default function Dashboard({
                       <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider font-mono">Progression & Certificate</h4>
                     </div>
                     <p className="text-[11.5px] text-slate-500 leading-relaxed">
-                      Earn rank titles based on your 10-day efficiency averages. Unlock digital certificates of stewardship that can be generated and printed instantly.
+                      Earn rank titles based on your 5-day efficiency averages. Unlock digital certificates of stewardship that can be generated and printed instantly.
                     </p>
-                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-[10.5px] font-mono text-slate-500">
+                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-[10.5px]">
                       <strong className="text-slate-700 block mb-0.5">Ranks:</strong>
                       Carbon Beginner → Sustainability Seeker → Earth Guardian → Eco Vanguard.
                     </div>
@@ -1729,11 +1748,11 @@ export default function Dashboard({
                     </div>
                   </div>
 
-                  {/* 10-Day Rolling Efficiency Progress bar */}
+                  {/* 5-Day Rolling Efficiency Progress bar */}
                   <div className="space-y-1.5">
                     <div className="flex justify-between text-[10px] items-center">
                       <div className="flex items-center gap-1 relative group">
-                        <span className="text-slate-500">10-Day Efficiency</span>
+                        <span className="text-slate-500">5-Day Efficiency</span>
                         <button
                           type="button"
                           onClick={(e) => {
@@ -1755,14 +1774,29 @@ export default function Dashboard({
                             : 'opacity-0 invisible group-hover:opacity-100 group-hover:visible'
                         }`}>
                           <div className="font-bold text-emerald-400 mb-1.5 font-mono tracking-wider uppercase text-[10px]">
-                            10-Day Efficiency Guide
+                            5-Day Efficiency Guide
                           </div>
                           <div className="space-y-2 text-slate-300 text-[10.5px]">
                             <div>
                               <span className="font-bold text-white block mb-0.5">Calculation Method:</span>
                               <p className="leading-normal">
-                                Your daily efficiency score (1.0 to 10.0) is assigned by AI based on carbon intensity. We compute the rolling average of your last 10 active days, scaled to 0-100%.
+                                Your daily efficiency score (1.0 to 10.0) is assigned by AI based on carbon intensity. We compute the rolling average of your last 5 active days, scaled to 0-100%.
                               </p>
+                            </div>
+                            <div>
+                              <span className="font-bold text-white block mb-0.5">Excluded Logs:</span>
+                              <p className="leading-normal">
+                                If a log contains no carbon-calculable activities, it is marked as non-calculable (no points/footprint) and is omitted from all averages (rather than being counted as zero).
+                              </p>
+                            </div>
+                            <div>
+                              <span className="font-bold text-white block mb-0.5">Rank Brackets:</span>
+                              <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 mt-0.5 text-[10px] font-mono">
+                                <span className="text-emerald-400">9.0+ : Eco Vanguard</span>
+                                <span className="text-teal-400">7.0+ : Earth Guardian</span>
+                                <span className="text-amber-400">4.0+ : Sustainability Seeker</span>
+                                <span className="text-rose-400">1.0+ : Carbon Beginner</span>
+                              </div>
                             </div>
                             <div>
                               <span className="font-bold text-white block mb-0.5">Strategies to Improve:</span>
@@ -2060,10 +2094,10 @@ export default function Dashboard({
               <div className="space-y-4">
                 <AnimatePresence initial={false}>
                   {logs.map((log) => {
-                    const rawScore = Number(log.efficiency_score)
-                    const isNewScore = rawScore <= 10
-                    const scoreOutOf10 = isNewScore ? rawScore : rawScore / 10
-                    const scorePercentage = isNewScore ? rawScore * 10 : rawScore
+                    const rawScore = log.efficiency_score !== null && log.efficiency_score !== undefined ? Number(log.efficiency_score) : null
+                    const isNewScore = rawScore !== null ? rawScore <= 10 : false
+                    const scoreOutOf10 = rawScore !== null ? (isNewScore ? rawScore : rawScore / 10) : 0
+                    const scorePercentage = rawScore !== null ? (isNewScore ? rawScore * 10 : rawScore) : 0
                     const theme = getThemeProps(rawScore)
 
                     return (
@@ -2074,13 +2108,14 @@ export default function Dashboard({
                         exit={{ opacity: 0, x: -50 }}
                         className={`glass-panel rounded-3xl border ${theme.border} ${theme.glow} transition-all duration-300 relative overflow-hidden bg-gradient-to-b ${theme.bgGrad}`}
                       >
-                        {/* Accent line on top based on efficiency */}
                         <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${
-                          scorePercentage >= 80
-                            ? 'from-emerald-500/60 to-teal-400/60'
-                            : scorePercentage >= 50
-                              ? 'from-amber-500/60 to-orange-400/60'
-                              : 'from-rose-500/60 to-pink-400/60'
+                          rawScore === null
+                            ? 'from-slate-400/40 to-slate-300/40'
+                            : scorePercentage >= 80
+                              ? 'from-emerald-500/60 to-teal-400/60'
+                              : scorePercentage >= 50
+                                ? 'from-amber-500/60 to-orange-400/60'
+                                : 'from-rose-500/60 to-pink-400/60'
                         }`} />
 
                         <div className="p-5 space-y-4">
@@ -2116,40 +2151,52 @@ export default function Dashboard({
                           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/40 border border-slate-100/60 p-4 rounded-2xl shadow-sm">
                             <div className="flex flex-col">
                               <span className={`text-3xl md:text-4xl font-black font-mono tracking-tight ${theme.text}`}>
-                                {log.calculated_kg.toFixed(1)} <span className="text-sm md:text-base font-bold text-slate-500 font-sans">kg CO₂e</span>
+                                {log.calculated_kg !== null && log.calculated_kg !== undefined ? (
+                                  <>
+                                    {log.calculated_kg.toFixed(1)} <span className="text-sm md:text-base font-bold text-slate-500 font-sans">kg CO₂e</span>
+                                  </>
+                                ) : (
+                                  <span className="text-sm md:text-base font-bold text-slate-400 font-sans">No Carbon Data</span>
+                                )}
                               </span>
                               <span className="text-[10px] text-slate-400 font-mono uppercase tracking-wider font-bold">Absolute Footprint</span>
                             </div>
                             
                             {/* Score Gauge out of 10 */}
-                            <div className="flex items-center gap-3 bg-white/60 p-2.5 rounded-xl border border-slate-200/20">
-                              <div className="relative w-10 h-10 flex items-center justify-center shrink-0">
-                                <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-                                  <circle cx="18" cy="18" r="16" fill="none" stroke="rgba(0,0,0,0.03)" strokeWidth="2.5" />
-                                  <circle 
-                                    cx="18" 
-                                    cy="18" 
-                                    r="16" 
-                                    fill="none" 
-                                    stroke={theme.accentLight} 
-                                    strokeWidth="3.5" 
-                                    strokeDasharray="100" 
-                                    strokeDashoffset={100 - scorePercentage}
-                                    strokeLinecap="round"
-                                    className="transition-all duration-1000 ease-out"
-                                  />
-                                </svg>
-                                <span className="absolute text-[12px] font-black text-slate-800 font-mono">
-                                  {scoreOutOf10.toFixed(0)}
-                                </span>
+                            {log.efficiency_score !== null && log.efficiency_score !== undefined ? (
+                              <div className="flex items-center gap-3 bg-white/60 p-2.5 rounded-xl border border-slate-200/20">
+                                <div className="relative w-10 h-10 flex items-center justify-center shrink-0">
+                                  <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                                    <circle cx="18" cy="18" r="16" fill="none" stroke="rgba(0,0,0,0.03)" strokeWidth="2.5" />
+                                    <circle 
+                                      cx="18" 
+                                      cy="18" 
+                                      r="16" 
+                                      fill="none" 
+                                      stroke={theme.accentLight} 
+                                      strokeWidth="3.5" 
+                                      strokeDasharray="100" 
+                                      strokeDashoffset={100 - scorePercentage}
+                                      strokeLinecap="round"
+                                      className="transition-all duration-1000 ease-out"
+                                    />
+                                  </svg>
+                                  <span className="absolute text-[12px] font-black text-slate-800 font-mono">
+                                    {scoreOutOf10.toFixed(0)}
+                                  </span>
+                                </div>
+                                <div className="flex flex-col">
+                                  <span className="text-[12px] font-black text-slate-700 leading-none">
+                                    {scoreOutOf10.toFixed(1)} <span className="text-[10px] text-slate-400 font-normal">/ 10</span>
+                                  </span>
+                                  <span className="text-[9px] text-slate-500 font-mono uppercase tracking-wide mt-0.5">Efficiency Score</span>
+                                </div>
                               </div>
-                              <div className="flex flex-col">
-                                <span className="text-[12px] font-black text-slate-700 leading-none">
-                                  {scoreOutOf10.toFixed(1)} <span className="text-[10px] text-slate-400 font-normal">/ 10</span>
-                                </span>
-                                <span className="text-[9px] text-slate-500 font-mono uppercase tracking-wide mt-0.5">Efficiency Score</span>
+                            ) : (
+                              <div className="flex items-center justify-center px-4 py-2.5 bg-white/60 rounded-xl border border-slate-200/20 text-[10px] font-mono text-slate-400 font-bold uppercase tracking-wider">
+                                Non-Calculable
                               </div>
-                            </div>
+                            )}
                           </div>
 
                           {/* User raw text input */}
@@ -2703,7 +2750,7 @@ export default function Dashboard({
                   <div className="text-center flex flex-col items-center">
                     <span className="text-2xl font-black text-green-600 block"><AnimatedCounter value={averageEfficiency} />%</span>
                     <div className="flex items-center gap-1.5 justify-center relative group">
-                      <span className="text-[9px] text-slate-500 uppercase font-mono tracking-wider font-bold">10-Day Rolling Efficiency</span>
+                      <span className="text-[9px] text-slate-500 uppercase font-mono tracking-wider font-bold">5-Day Rolling Efficiency</span>
                       <button
                         type="button"
                         onClick={(e) => {
@@ -2725,13 +2772,19 @@ export default function Dashboard({
                           : 'opacity-0 invisible group-hover:opacity-100 group-hover:visible'
                       }`}>
                         <div className="font-bold text-emerald-400 mb-1.5 font-mono tracking-wider uppercase text-[10px]">
-                          Calculation & Strategy
+                          5-Day Efficiency Guide
                         </div>
                         <div className="space-y-2 text-slate-300 text-[10.5px]">
                           <div>
-                            <span className="font-bold text-white block mb-0.5">Methodology:</span>
+                            <span className="font-bold text-white block mb-0.5">Calculation Method:</span>
                             <p className="leading-normal">
-                              Daily logs are averaged. The rolling efficiency is the average score of your last 10 active days (1.0 to 10.0 scale) scaled to 0-100%.
+                              Your daily efficiency score (1.0 to 10.0) is assigned by AI based on carbon intensity. We compute the rolling average of your last 5 active days, scaled to 0-100%.
+                            </p>
+                          </div>
+                          <div>
+                            <span className="font-bold text-white block mb-0.5">Excluded Logs:</span>
+                            <p className="leading-normal">
+                              If a log contains no carbon-calculable activities, it is marked as non-calculable (no points/footprint) and is omitted from all averages (rather than being counted as zero).
                             </p>
                           </div>
                           <div>
@@ -2739,8 +2792,8 @@ export default function Dashboard({
                             <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 mt-0.5 text-[10px] font-mono">
                               <span className="text-emerald-400">9.0+ : Eco Vanguard</span>
                               <span className="text-teal-400">7.0+ : Earth Guardian</span>
-                              <span className="text-amber-400">4.0+ : Seeker</span>
-                              <span className="text-rose-400">1.0+ : Beginner</span>
+                              <span className="text-amber-400">4.0+ : Sustainability Seeker</span>
+                              <span className="text-rose-400">1.0+ : Carbon Beginner</span>
                             </div>
                           </div>
                           <div>

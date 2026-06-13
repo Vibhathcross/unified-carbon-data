@@ -48,11 +48,11 @@ The interface is built to deliver a premium, high-fidelity experience:
 - **Compassionate & Scientific Voice**: Enforces a friendly, supportive tone in the LLM prompt. It avoids preachy lectures, respects user busy schedules, and guides them step-by-step.
 - **Rich Structured Output**: Returns precise footprint calculations, narratives, itemized emissions causes (custom labeled), actionable step-by-step suggestions, and supportive motivational blocks.
 
-### 📊 3. 10-Day Rolling Progress Matrix
+### 📊 3. 5-Day Rolling Progress Matrix
 - **Intraday Log Aggregation**: Groups and averages multiple logs submitted on the same calendar day.
-- **Sliding Active Window**: Tracks the 10 most recent active days to represent the user's progress.
-- **Rolling Mean Calculation**: Dynamically computes the average efficiency score of the 10 active days.
-- **Reactive Rank Synchronization**: User ranks are automatically updated in real-time as the 10-day rolling mean crosses threshold boundaries.
+- **Sliding Active Window**: Tracks the 5 most recent active days to represent the user's progress.
+- **Rolling Mean Calculation**: Dynamically computes the average efficiency score of the 5 active days.
+- **Reactive Rank Synchronization**: User ranks are automatically updated in real-time as the 5-day rolling mean crosses threshold boundaries.
 
 ### 🎖️ 4. Dynamic Sync Rank Badges
 - **Carbon Beginner** (Avg < 4.0): default amber rank with a Flame icon.
