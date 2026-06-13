@@ -1546,43 +1546,6 @@ export default function Dashboard({
 
                 </div>
 
-                {/* Additional controls and buttons guide */}
-                <div className="glass-panel p-6 rounded-2xl border border-slate-100 space-y-4">
-                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider font-mono flex items-center gap-2">
-                    <Terminal className="w-4 h-4 text-slate-600" />
-                    Controls & Buttons Guide
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                    <div className="space-y-3">
-                      <div className="flex gap-2">
-                        <strong className="text-slate-700 font-mono min-w-[100px] shrink-0">Submit Log:</strong>
-                        <span className="text-slate-500">Submits log text to the active LLM. Requires AI Parser activation.</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <strong className="text-slate-700 font-mono min-w-[100px] shrink-0">Delete (Trash):</strong>
-                        <span className="text-slate-500">Permanently deletes a journal entry from the Supabase history.</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <strong className="text-slate-700 font-mono min-w-[100px] shrink-0">Info Button (i):</strong>
-                        <span className="text-slate-500">Located at headings to display instant, touch-friendly parameter guidelines.</span>
-                      </div>
-                    </div>
-                    <div className="space-y-3">
-                      <div className="flex gap-2">
-                        <strong className="text-slate-700 font-mono min-w-[100px] shrink-0">Export PDF:</strong>
-                        <span className="text-slate-500">Generates and downloads a clean certificate page for your active rank.</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <strong className="text-slate-700 font-mono min-w-[100px] shrink-0">Logout:</strong>
-                        <span className="text-slate-500">Ends your active user session and safely signs out of the Supabase node.</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <strong className="text-slate-700 font-mono min-w-[100px] shrink-0">Fetch Models:</strong>
-                        <span className="text-slate-500">Queries selected provider API to pull the latest models list dynamically.</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
 
               </div>
 
