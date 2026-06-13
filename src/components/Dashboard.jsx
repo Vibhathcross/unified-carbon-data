@@ -261,6 +261,8 @@ export default function Dashboard({
   const [llmBaseUrl, setLlmBaseUrl] = useState('')
   const [llmModel, setLlmModel] = useState('llama-3.1-8b-instant')
   const [llmSystemPrompt, setLlmSystemPrompt] = useState('')
+  const [showProfileTooltip, setShowProfileTooltip] = useState(false)
+  const [showAnalyticsTooltip, setShowAnalyticsTooltip] = useState(false)
 
   const [savingSettings, setSavingSettings] = useState(false)
   const [settingsStatus, setSettingsStatus] = useState('')
@@ -303,6 +305,10 @@ export default function Dashboard({
     const handleClickOutside = (event) => {
       if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target)) {
         setShowProfileDropdown(false)
+      }
+      if (!event.target.closest('.info-tooltip-trigger')) {
+        setShowProfileTooltip(false)
+        setShowAnalyticsTooltip(false)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -1576,10 +1582,26 @@ export default function Dashboard({
                     <div className="flex justify-between text-[10px] items-center">
                       <div className="flex items-center gap-1 relative group">
                         <span className="text-slate-500">10-Day Efficiency</span>
-                        <Info className="w-3 h-3 text-slate-400 hover:text-emerald-500 transition-colors cursor-help shrink-0" />
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setShowProfileTooltip(!showProfileTooltip)
+                          }}
+                          onMouseEnter={() => setShowProfileTooltip(true)}
+                          onMouseLeave={() => setShowProfileTooltip(false)}
+                          className="info-tooltip-trigger p-1 -m-1 text-slate-400 hover:text-emerald-500 transition-colors cursor-pointer focus:outline-none flex items-center justify-center shrink-0"
+                          title="View Guide"
+                        >
+                          <Info className="w-3.5 h-3.5" />
+                        </button>
                         
                         {/* Tooltip Content */}
-                        <div className="absolute left-0 bottom-5 w-72 bg-emerald-950/95 backdrop-blur border border-emerald-500/20 text-emerald-100 rounded-2xl p-4 shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 pointer-events-none text-xs leading-relaxed text-left">
+                        <div className={`absolute left-0 bottom-6 w-72 bg-emerald-950/95 backdrop-blur border border-emerald-500/20 text-emerald-100 rounded-2xl p-4 shadow-2xl transition-all duration-300 z-50 pointer-events-none text-xs leading-relaxed text-left ${
+                          showProfileTooltip 
+                            ? 'opacity-100 visible' 
+                            : 'opacity-0 invisible group-hover:opacity-100 group-hover:visible'
+                        }`}>
                           <div className="font-bold text-emerald-400 mb-1.5 font-mono tracking-wider uppercase text-[10px]">
                             10-Day Efficiency Guide
                           </div>
@@ -2483,10 +2505,26 @@ export default function Dashboard({
                     <span className="text-2xl font-black text-green-600 block"><AnimatedCounter value={averageEfficiency} />%</span>
                     <div className="flex items-center gap-1.5 justify-center relative group">
                       <span className="text-[9px] text-slate-500 uppercase font-mono tracking-wider font-bold">10-Day Rolling Efficiency</span>
-                      <Info className="w-3 h-3 text-slate-400 hover:text-emerald-500 transition-colors cursor-help shrink-0" />
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setShowAnalyticsTooltip(!showAnalyticsTooltip)
+                        }}
+                        onMouseEnter={() => setShowAnalyticsTooltip(true)}
+                        onMouseLeave={() => setShowAnalyticsTooltip(false)}
+                        className="info-tooltip-trigger p-1 -m-1 text-slate-400 hover:text-emerald-500 transition-colors cursor-pointer focus:outline-none flex items-center justify-center shrink-0"
+                        title="View Guide"
+                      >
+                        <Info className="w-3.5 h-3.5" />
+                      </button>
                       
                       {/* Tooltip Content */}
-                      <div className="absolute left-1/2 transform -translate-x-1/2 bottom-6 w-72 bg-emerald-950/95 backdrop-blur border border-emerald-500/20 text-emerald-100 rounded-2xl p-4 shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 pointer-events-none text-xs leading-relaxed text-left">
+                      <div className={`absolute left-1/2 transform -translate-x-1/2 bottom-7 w-72 bg-emerald-950/95 backdrop-blur border border-emerald-500/20 text-emerald-100 rounded-2xl p-4 shadow-2xl transition-all duration-300 z-50 pointer-events-none text-xs leading-relaxed text-left ${
+                        showAnalyticsTooltip 
+                          ? 'opacity-100 visible' 
+                          : 'opacity-0 invisible group-hover:opacity-100 group-hover:visible'
+                      }`}>
                         <div className="font-bold text-emerald-400 mb-1.5 font-mono tracking-wider uppercase text-[10px]">
                           Calculation & Strategy
                         </div>
