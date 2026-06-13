@@ -1,13 +1,13 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { supabase, isPlaceholder } from '../supabaseClient'
 import { motion } from 'framer-motion'
-import { Leaf, Lock, Sparkles, ArrowRight, RefreshCw, AlertCircle, Eye, EyeOff, Shield, ShieldCheck } from 'lucide-react'
+import { Leaf, Lock, Sparkles, ArrowRight, RefreshCw, AlertCircle, Eye, EyeOff, Shield, ShieldCheck, FolderOpen } from 'lucide-react'
 
 // Random Eco-ID Generator lists
 const prefixes = ['eco', 'terra', 'sage', 'green', 'zero', 'bio', 'solar', 'wind', 'earth', 'pure', 'flora', 'sol']
 const nouns = ['guardian', 'scout', 'keeper', 'warrior', 'hero', 'ranger', 'pioneer', 'shifter', 'nexus', 'apex', 'leaf', 'spark']
 
-export default function AuthScreen({ onAuthSuccess, onAdminLogin }) {
+export default function AuthScreen({ onAuthSuccess, onAdminLogin, onAdminConfigFile }) {
   const [isSignUp, setIsSignUp] = useState(false)
   const [ecoId, setEcoId] = useState('')
   const [password, setPassword] = useState('')
@@ -18,6 +18,24 @@ export default function AuthScreen({ onAuthSuccess, onAdminLogin }) {
   const [adminLoading, setAdminLoading] = useState(false)
   const [adminError, setAdminError] = useState('')
   const [adminSuccess, setAdminSuccess] = useState(false)
+  const fileInputRef = useRef(null)
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setAdminLoading(true)
+    setAdminError('')
+    try {
+      await onAdminConfigFile(file)
+      setAdminSuccess(true)
+    } catch (err) {
+      setAdminError(err.message || 'Failed to load config file.')
+    } finally {
+      setAdminLoading(false)
+      // Reset so same file can be re-selected
+      e.target.value = ''
+    }
+  }
 
   // Generate a random unique-looking Eco-ID
   const handleGenerateEcoId = () => {
@@ -234,10 +252,32 @@ export default function AuthScreen({ onAuthSuccess, onAdminLogin }) {
             </button>
           </div>
           {adminError && (
-            <div className="px-4 pb-3">
+            <div className="px-4 pb-3 flex flex-col gap-2">
               <p className="text-[10px] text-red-600 font-mono bg-red-50 border border-red-100 rounded-lg px-3 py-2">
                 ⚠ {adminError}
               </p>
+              {adminError.includes('not found') && (
+                <>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".json,application/json"
+                    className="hidden"
+                    onChange={handleFileChange}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-bold font-mono bg-slate-800 text-green-400 hover:bg-slate-700 border border-slate-600 transition-all active:scale-95 cursor-pointer"
+                  >
+                    <FolderOpen className="w-3.5 h-3.5" />
+                    Load Config File from this Device
+                  </button>
+                  <p className="text-[9px] text-slate-400 font-mono leading-relaxed">
+                    📁 Select your local <span className="text-slate-600 font-bold">admin_config.json</span>. Once loaded it is saved in this browser permanently — works on any URL.
+                  </p>
+                </>
+              )}
             </div>
           )}
         </motion.div>
