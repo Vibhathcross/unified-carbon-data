@@ -1392,14 +1392,14 @@ export default function Dashboard({
 
   const certColors = {
     'Eco Vanguard': {
-      border: '#0f766e',
-      doubleBorder: '#115e59',
-      text: '#0f766e',
-      leafOpacity: 'text-teal-600/10',
-      sealBg: '#0f766e',
-      sealText: '#ccfbf1',
-      bgGrad: 'linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 50%, #99f6e4 100%)',
-      goldBorder: '#0d9488'
+      border: '#2563eb',
+      doubleBorder: '#1e40af',
+      text: '#1d4ed8',
+      leafOpacity: 'text-blue-600/10',
+      sealBg: '#1d4ed8',
+      sealText: '#dbeafe',
+      bgGrad: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 50%, #bfdbfe 100%)',
+      goldBorder: '#3b82f6'
     },
     'Earth Guardian': {
       border: '#16a34a',
@@ -1412,24 +1412,24 @@ export default function Dashboard({
       goldBorder: '#16a34a'
     },
     'Sustainability Seeker': {
-      border: '#2563eb',
-      doubleBorder: '#1e40af',
-      text: '#1d4ed8',
-      leafOpacity: 'text-blue-600/10',
-      sealBg: '#1d4ed8',
-      sealText: '#dbeafe',
-      bgGrad: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 50%, #bfdbfe 100%)',
-      goldBorder: '#3b82f6'
+      border: '#ea580c',
+      doubleBorder: '#7c2d12',
+      text: '#c2410c',
+      leafOpacity: 'text-orange-600/10',
+      sealBg: '#c2410c',
+      sealText: '#ffedd5',
+      bgGrad: 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 50%, #fed7aa 100%)',
+      goldBorder: '#f97316'
     },
     'Carbon Beginner': {
-      border: '#fbbf24',
-      doubleBorder: '#b45309',
-      text: '#b45309',
-      leafOpacity: 'text-amber-600/10',
-      sealBg: '#b45309',
-      sealText: '#fef3c7',
-      bgGrad: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 50%, #fde68a 100%)',
-      goldBorder: '#d97706'
+      border: '#eab308',
+      doubleBorder: '#854d0e',
+      text: '#ca8a04',
+      leafOpacity: 'text-yellow-600/10',
+      sealBg: '#ca8a04',
+      sealText: '#fef9c3',
+      bgGrad: 'linear-gradient(135deg, #fefce8 0%, #fef9c3 50%, #fef08a 100%)',
+      goldBorder: '#eab308'
     }
   }
 
