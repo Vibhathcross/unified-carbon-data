@@ -6,6 +6,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Leaf, Shield, Globe, Cpu, RefreshCw } from 'lucide-react'
 import FallingLeaves from './components/FallingLeaves'
 import { defaultSettings } from './utils/carbonAnalyzer'
+import LeafWaterLoader from './components/LeafWaterLoader'
+
 
 
 export default function App() {
@@ -263,7 +265,6 @@ export default function App() {
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 glow-bg-green rounded-full opacity-35 filter blur-3xl pointer-events-none" />
 
             <div className="flex flex-col items-center max-w-sm w-full text-center relative z-10">
-              {/* Spinning / Glowing Logo Container */}
               <motion.div
                 animate={{ 
                   scale: [1, 1.05, 1],
@@ -276,7 +277,7 @@ export default function App() {
                 transition={{ repeat: Infinity, duration: 2.5, ease: 'easeInOut' }}
                 className="p-5 bg-green-500/10 rounded-3xl border border-green-500/25 mb-8"
               >
-                <Leaf className="w-12 h-12 text-green-600" />
+                <LeafWaterLoader size="w-12 h-12" loop={false} />
               </motion.div>
 
               <h1 className="text-4xl font-extrabold text-slate-900 tracking-widest font-title mb-2">
@@ -288,9 +289,10 @@ export default function App() {
             </div>
           </motion.div>
         ) : authLoading ? (
-          /* Micro spinner while resolving authentication check */
-          <div key="loader" className="min-h-screen flex items-center justify-center bg-white">
-            <RefreshCw className="w-8 h-8 text-green-600 animate-spin" />
+          /* Premium leaf water loader while resolving authentication check */
+          <div key="loader" className="min-h-screen flex flex-col items-center justify-center gap-4">
+            <LeafWaterLoader size="w-14 h-14" loop={true} />
+            <span className="text-xs text-slate-500 font-mono font-bold tracking-wider animate-pulse">Syncing Session...</span>
           </div>
         ) : !session ? (
           /* Auth screen */

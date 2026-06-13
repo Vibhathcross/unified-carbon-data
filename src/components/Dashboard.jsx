@@ -11,6 +11,7 @@ import {
   ArrowRight, Activity
 } from 'lucide-react'
 import { toPng } from 'html-to-image'
+import LeafWaterLoader from './LeafWaterLoader'
 
 
 // Popular models catalog for each supported LLM provider
@@ -2443,10 +2444,10 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
             </div>
 
             {loadingLogs ? (
-              <div className="flex flex-col items-center justify-center py-12 gap-3">
-                <RefreshCw className="w-8 h-8 text-green-600 animate-spin" />
-                <span className="text-xs text-slate-500 font-mono font-bold">Loading synchronized logs...</span>
-              </div>
+               <div className="flex flex-col items-center justify-center py-12 gap-4">
+                 <LeafWaterLoader size="w-12 h-12" loop={true} />
+                 <span className="text-xs text-slate-500 font-mono font-bold tracking-wider">Loading synchronized logs...</span>
+               </div>
             ) : logs.length === 0 ? (
               <div className="glass-panel rounded-3xl p-10 border border-green-100/50 text-center flex flex-col items-center justify-center">
                 <div className="p-3 bg-slate-50 rounded-2xl mb-4 border border-slate-200">
