@@ -7,7 +7,8 @@ import {
   Sparkles, RefreshCw, Send, Calendar, ChevronRight, Info, 
   Settings, Database, Leaf, Car, Utensils, Zap, ShoppingBag, 
   Layers, Globe, CheckCircle2, ShieldAlert, Terminal, Flame, Trees,
-  XCircle, AlertTriangle, Compass, BookOpen, HelpCircle, Check
+  XCircle, AlertTriangle, Compass, BookOpen, HelpCircle, Check,
+  ArrowRight, Activity
 } from 'lucide-react'
 import { toPng } from 'html-to-image'
 
@@ -292,6 +293,11 @@ export default function Dashboard({
 
   // Submitting Q&A Answers state
   const [submittingAnswers, setSubmittingAnswers] = useState({})
+
+  // Active in-progress conversation state for new entries
+  const [activeConversation, setActiveConversation] = useState(null)
+  const [activeAnswerText, setActiveAnswerText] = useState('')
+  const [submittingConversation, setSubmittingConversation] = useState(false)
 
   // Profile dropdown click outside handler
   useEffect(() => {
@@ -1139,16 +1145,32 @@ export default function Dashboard({
       return
     }
 
+    const hasQuestions = calculation.clarifying_questions && calculation.clarifying_questions.length > 0;
+
+    if (hasQuestions) {
+      setActiveConversation({
+        originalText: journalText,
+        questions: [calculation.clarifying_questions.join('\n')],
+        answers: [],
+        turn: 1,
+        currentQuestions: calculation.clarifying_questions,
+        latestCalculation: calculation
+      })
+      setJournalText('')
+      setSubmitting(false)
+      setCurrentStepIndex(-1)
+      return
+    }
+
     // Step 3: Database ledger synchronization
     setCurrentStepIndex(2)
     await new Promise(resolve => setTimeout(resolve, 400))
 
     try {
-      const hasQuestions = calculation.clarifying_questions && calculation.clarifying_questions.length > 0;
       const conversation = {
-        questions: hasQuestions ? [calculation.clarifying_questions.join('\n')] : [],
+        questions: [],
         answers: [],
-        turn: hasQuestions ? 1 : 0
+        turn: 0
       };
       const serializedRawText = journalText + "\n---\n" + JSON.stringify(conversation);
 
@@ -1198,6 +1220,141 @@ export default function Dashboard({
     } finally {
       setSubmitting(false)
       setCurrentStepIndex(-1)
+    }
+  }
+
+  const saveFinalizedLog = async (originalText, conversationObj, calculation) => {
+    const serializedRawText = originalText + "\n---\n" + JSON.stringify(conversationObj);
+
+    const newLog = {
+      user_id: user.id,
+      raw_text: serializedRawText,
+      calculated_kg: calculation.calculated_kg,
+      efficiency_score: calculation.efficiency_score,
+      category: calculation.category || null,
+      narrative: calculation.narrative || '',
+      causes: calculation.causes || [],
+      suggestions: calculation.suggestions || [],
+      motivation: calculation.motivation || '',
+      created_at: new Date().toISOString()
+    }
+
+    if (dbConfigStatus === 'connected') {
+      const { data, error } = await supabase
+        .from('journal_logs')
+        .insert([newLog])
+        .select()
+
+      if (error) throw error
+      if (data && data[0]) {
+        setLogs(prev => [data[0], ...prev])
+      }
+    } else {
+      const finalMockLog = {
+        log_id: `mock-${Date.now()}`,
+        ...newLog
+      }
+      const updatedLogs = [finalMockLog, ...logs]
+      setLogs(updatedLogs)
+      localStorage.setItem(`eco_logs_${user.id}`, JSON.stringify(updatedLogs))
+    }
+
+    // Check for badge update based on total logs and average efficiency
+    await checkAndUpdateBadge(logsCount + 1, (averageEfficiency + calculation.efficiency_score) / (logsCount + 1))
+  }
+
+  const handleConversationSubmit = async (e) => {
+    e?.preventDefault()
+    if (!activeAnswerText.trim() || !activeConversation) return
+
+    setSubmittingConversation(true)
+    setSubmitError('')
+
+    try {
+      // 1. Construct conversation history text for the LLM prompt
+      let historyText = ''
+      for (let i = 0; i < activeConversation.questions.length; i++) {
+        const q = activeConversation.questions[i] || ''
+        const a = activeConversation.answers[i] || ''
+        historyText += `\nAI Question ${i + 1}: ${q}\nUser Answer ${i + 1}: ${a}\n`
+      }
+      
+      const currentQText = activeConversation.currentQuestions.join('\n')
+      historyText += `\nAI Question ${activeConversation.questions.length + 1}: ${currentQText}\nUser Answer ${activeConversation.questions.length + 1}: ${activeAnswerText}\n`
+
+      const compositePrompt = `${activeConversation.originalText}
+
+[Conversation History]
+${historyText}
+
+Current Turn: ${activeConversation.turn + 1} of 3 (Max 3 turns. If turn is 3, you MUST set "clarifying_questions" to null or an empty array and output your final calculation.)`
+
+      // 2. Call LLM to recalculate
+      const calculation = await analyzeJournalEntryAsync(compositePrompt, appSettings)
+
+      const hasNewQuestions = calculation.clarifying_questions && calculation.clarifying_questions.length > 0
+      const isTurnLimit = activeConversation.turn >= 3
+
+      const updatedQuestions = [...activeConversation.questions, currentQText]
+      const updatedAnswers = [...activeConversation.answers, activeAnswerText]
+
+      if (hasNewQuestions && !isTurnLimit) {
+        setActiveConversation({
+          originalText: activeConversation.originalText,
+          questions: updatedQuestions,
+          answers: updatedAnswers,
+          turn: activeConversation.turn + 1,
+          currentQuestions: calculation.clarifying_questions,
+          latestCalculation: calculation
+        })
+        setActiveAnswerText('')
+      } else {
+        const finalConversation = {
+          questions: updatedQuestions,
+          answers: updatedAnswers,
+          turn: activeConversation.turn
+        }
+        await saveFinalizedLog(activeConversation.originalText, finalConversation, calculation)
+        setActiveConversation(null)
+        setActiveAnswerText('')
+        setShowMobileEntrySheet(false)
+      }
+    } catch (err) {
+      console.error('Conversation recalculation failure:', err)
+      setSubmitError(err.message || 'Recalculation error. Please try again.')
+    } finally {
+      setSubmittingConversation(false)
+    }
+  }
+
+  const handleConversationSkip = async () => {
+    if (!activeConversation) return
+    setSubmittingConversation(true)
+    setSubmitError('')
+
+    try {
+      const finalConversation = {
+        questions: activeConversation.questions,
+        answers: activeConversation.answers,
+        turn: activeConversation.turn
+      }
+      await saveFinalizedLog(activeConversation.originalText, finalConversation, activeConversation.latestCalculation)
+      setActiveConversation(null)
+      setActiveAnswerText('')
+      setShowMobileEntrySheet(false)
+    } catch (err) {
+      console.error('Conversation skip failure:', err)
+      setSubmitError(err.message || 'Failed to save log.')
+    } finally {
+      setSubmittingConversation(false)
+    }
+  }
+
+  const handleConversationCancel = () => {
+    if (confirm('Are you sure you want to discard this log and cancel the handshake?')) {
+      setActiveConversation(null)
+      setActiveAnswerText('')
+      setSubmitError('')
     }
   }
 
@@ -2003,48 +2160,168 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
               </div>
             </h3>
             
-            <form onSubmit={handleLogSubmit} className="space-y-4">
-              <div className="relative">
-                <textarea
-                  value={journalText}
-                  onChange={(e) => setJournalText(e.target.value)}
-                  placeholder="Describe your activities today... (e.g. 'I rode my bicycle to work and had a vegan salad bowl for lunch')"
-                  rows="4"
-                  className="w-full p-4 glass-input text-sm leading-relaxed resize-none focus:ring-1 focus:ring-green-500"
-                  disabled={submitting}
-                />
-                
-                <div className="absolute bottom-3 right-3 text-[10px] font-mono text-slate-500">
-                  {journalText.length} chars
-                </div>
-              </div>
-
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-1.5 text-xs text-green-700 font-bold font-mono">
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-ping" />
-                  AI parser activated
+            {activeConversation ? (
+              <form onSubmit={handleConversationSubmit} className="space-y-4">
+                {/* Handshake Header */}
+                <div className="flex items-center justify-between border-b border-green-100/50 pb-2 mb-2">
+                  <div className="flex items-center gap-2 text-xs font-bold text-green-800 font-mono">
+                    <Activity className="w-4 h-4 text-green-600 animate-pulse" />
+                    <span>AETHER HANDSHAKE — Turn {activeConversation.turn}/3</span>
+                  </div>
+                  <div className="text-[10px] font-bold bg-green-55 px-2 py-0.5 rounded-full text-green-700 font-mono">
+                    Active Session
+                  </div>
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={submitting || !journalText.trim()}
-                  className={`py-2.5 px-5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer
-                    ${submitting || !journalText.trim()
-                      ? 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300'
-                      : 'bg-green-600 text-white hover:bg-green-500 active:scale-[0.98]'
-                    }`}
-                >
-                  {submitting ? (
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <>
-                      Sync Log
-                      <Send className="w-3.5 h-3.5" />
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
+                {/* Original Entry Display */}
+                <div className="bg-slate-50/50 border border-slate-200/40 rounded-2xl p-3.5 shadow-sm">
+                  <span className="font-bold text-slate-500 block text-[9px] uppercase font-mono tracking-wider mb-1">Your Journal Entry:</span>
+                  <p className="text-slate-700 text-xs italic font-medium">“{activeConversation.originalText}”</p>
+                </div>
+
+                {/* Conversation History */}
+                {activeConversation.answers.length > 0 && (
+                  <div className="space-y-3 max-h-40 overflow-y-auto pr-1 custom-scrollbar">
+                    {activeConversation.answers.map((ansText, qIdx) => {
+                      const qText = activeConversation.questions[qIdx];
+                      return (
+                        <div key={qIdx} className="space-y-1 text-xs">
+                          <div className="bg-white/60 border border-slate-100 p-2.5 rounded-xl">
+                            <span className="font-bold text-slate-500 block text-[9px] uppercase font-mono tracking-wider mb-0.5">AI Question:</span>
+                            <p className="text-slate-800 whitespace-pre-line leading-relaxed">{qText}</p>
+                          </div>
+                          <div className="bg-emerald-500/[0.04] border border-emerald-500/10 p-2.5 rounded-xl ml-4">
+                            <span className="font-bold text-emerald-600 block text-[9px] uppercase font-mono tracking-wider mb-0.5">Your Response:</span>
+                            <p className="text-slate-700 leading-relaxed">{ansText}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Current Active Clarifying Question */}
+                <div className="space-y-2">
+                  {activeConversation.currentQuestions.map((qText, qIdx) => (
+                    <div 
+                      key={qIdx} 
+                      className="bg-emerald-500/[0.06] backdrop-blur-md border border-emerald-500/15 rounded-2xl p-4 transition-all duration-300 hover:bg-emerald-500/[0.1] hover:border-emerald-500/25 hover:scale-[1.005] hover:shadow-sm"
+                    >
+                      <span className="font-black text-emerald-700 block text-[10px] uppercase font-mono tracking-wider mb-1.5 flex items-center gap-1">
+                        <HelpCircle className="w-3.5 h-3.5" />
+                        AI CLARIFYING QUESTION
+                      </span>
+                      <p className="text-slate-800 text-[13.5px] leading-relaxed font-semibold">{qText}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Answer input */}
+                <div className="relative">
+                  <textarea
+                    value={activeAnswerText}
+                    onChange={(e) => setActiveAnswerText(e.target.value)}
+                    placeholder="Provide details (e.g. vehicle type, mileage, diet specifics, energy levels) to refine calculations..."
+                    rows="3"
+                    className="w-full p-4 glass-input text-sm leading-relaxed resize-none focus:ring-1 focus:ring-green-500"
+                    disabled={submittingConversation}
+                  />
+                  <div className="absolute bottom-3 right-3 text-[10px] font-mono text-slate-500">
+                    {activeAnswerText.length} chars
+                  </div>
+                </div>
+
+                {/* Controls */}
+                <div className="flex justify-between items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleConversationCancel}
+                    disabled={submittingConversation}
+                    className="py-2.5 px-4 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Cancel Sync
+                  </button>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleConversationSkip}
+                      disabled={submittingConversation}
+                      className="py-2.5 px-4 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 border border-slate-200 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    >
+                      <ArrowRight className="w-3.5 h-3.5" />
+                      Skip & Save
+                    </button>
+
+                    <button
+                      type="submit"
+                      disabled={submittingConversation || !activeAnswerText.trim()}
+                      className={`py-2.5 px-5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer
+                        ${submittingConversation || !activeAnswerText.trim()
+                          ? 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300'
+                          : 'bg-emerald-600 text-white hover:bg-emerald-500 active:scale-[0.98]'
+                        }`}
+                    >
+                      {submittingConversation ? (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          Analyzing...
+                        </>
+                      ) : (
+                        <>
+                          Continue Handshake
+                          <Send className="w-3.5 h-3.5" />
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={handleLogSubmit} className="space-y-4">
+                <div className="relative">
+                  <textarea
+                    value={journalText}
+                    onChange={(e) => setJournalText(e.target.value)}
+                    placeholder="Describe your activities today... (e.g. 'I rode my bicycle to work and had a vegan salad bowl for lunch')"
+                    rows="4"
+                    className="w-full p-4 glass-input text-sm leading-relaxed resize-none focus:ring-1 focus:ring-green-500"
+                    disabled={submitting}
+                  />
+                  
+                  <div className="absolute bottom-3 right-3 text-[10px] font-mono text-slate-500">
+                    {journalText.length} chars
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-1.5 text-xs text-green-700 font-bold font-mono">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-ping" />
+                    AI parser activated
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={submitting || !journalText.trim()}
+                    className={`py-2.5 px-5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer
+                      ${submitting || !journalText.trim()
+                        ? 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300'
+                        : 'bg-green-600 text-white hover:bg-green-500 active:scale-[0.98]'
+                      }`}
+                  >
+                    {submitting ? (
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <>
+                        Sync Log
+                        <Send className="w-3.5 h-3.5" />
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            )}
 
             {/* Submission Terminal Progress Panel */}
             <AnimatePresence>
@@ -2314,44 +2591,7 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
                                 })}
                               </div>
 
-                              {/* Active Unanswered Question Input */}
-                              {conversation.questions.length > conversation.answers.length && (
-                                <div className="mt-3 space-y-2 border-t border-slate-200/50 pt-3">
-                                  <span className="text-[11px] font-bold text-slate-500 block uppercase font-mono tracking-wider">Provide Answers below to refine points:</span>
-                                  <textarea
-                                    id={`qa-input-${log.log_id}`}
-                                    className="w-full bg-white/70 border border-slate-200 rounded-xl p-2.5 text-[13px] text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-all font-sans"
-                                    placeholder="Type details here (e.g. type of fuel, distance, specific details)..."
-                                    rows="2"
-                                  />
-                                  <div className="flex justify-end">
-                                    <button
-                                      type="button"
-                                      disabled={submittingAnswers[log.log_id]}
-                                      onClick={() => {
-                                        const textarea = document.getElementById(`qa-input-${log.log_id}`);
-                                        if (textarea && textarea.value.trim()) {
-                                          handleAnswerClarification(log.log_id, textarea.value.trim());
-                                          textarea.value = '';
-                                        }
-                                      }}
-                                      className="bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-black px-4 py-2 rounded-xl flex items-center gap-1.5 shadow transition-all hover:scale-[1.02] active:scale-[0.98]"
-                                    >
-                                      {submittingAnswers[log.log_id] ? (
-                                        <>
-                                          <RefreshCw className="w-3 h-3 animate-spin" />
-                                          Recalculating...
-                                        </>
-                                      ) : (
-                                        <>
-                                          <Check className="w-3.5 h-3.5" />
-                                          Recalculate Points
-                                        </>
-                                      )}
-                                    </button>
-                                  </div>
-                                </div>
-                              )}
+
                             </div>
                           )}
 
@@ -2982,41 +3222,158 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
                 RECORD JOURNAL FOOTPRINT
               </h3>
 
-              <form onSubmit={handleLogSubmit} className="space-y-4">
-                <textarea
-                  value={journalText}
-                  onChange={(e) => setJournalText(e.target.value)}
-                  placeholder="Describe your activities today... (e.g. 'I rode the train to work, ate a vegetarian salad, and didn't use any heating')"
-                  rows="4"
-                  className="w-full p-4 glass-input text-sm leading-relaxed resize-none focus:ring-1 focus:ring-green-500"
-                  disabled={submitting}
-                />
-                
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px] text-slate-500 font-mono">
-                    {journalText.length} chars
-                  </span>
+              {activeConversation ? (
+                <form onSubmit={handleConversationSubmit} className="space-y-4">
+                  {/* Handshake Header */}
+                  <div className="flex items-center justify-between border-b border-green-100/50 pb-2 mb-2">
+                    <div className="flex items-center gap-2 text-xs font-bold text-green-800 font-mono">
+                      <Activity className="w-4 h-4 text-green-600 animate-pulse" />
+                      <span>AETHER HANDSHAKE — Turn {activeConversation.turn}/3</span>
+                    </div>
+                  </div>
+
+                  {/* Original Entry Display */}
+                  <div className="bg-slate-50/50 border border-slate-200/40 rounded-xl p-3 shadow-sm">
+                    <span className="font-bold text-slate-500 block text-[9px] uppercase font-mono tracking-wider mb-1">Your Journal Entry:</span>
+                    <p className="text-slate-700 text-xs italic font-medium">“{activeConversation.originalText}”</p>
+                  </div>
+
+                  {/* Conversation History */}
+                  {activeConversation.answers.length > 0 && (
+                    <div className="space-y-3 max-h-32 overflow-y-auto pr-1 custom-scrollbar">
+                      {activeConversation.answers.map((ansText, qIdx) => {
+                        const qText = activeConversation.questions[qIdx];
+                        return (
+                          <div key={qIdx} className="space-y-1 text-xs">
+                            <div className="bg-white/60 border border-slate-100 p-2 rounded-xl">
+                              <span className="font-bold text-slate-500 block text-[8px] uppercase font-mono tracking-wider mb-0.5">AI Question:</span>
+                              <p className="text-slate-800 leading-normal">{qText}</p>
+                            </div>
+                            <div className="bg-emerald-500/[0.04] border border-emerald-500/10 p-2 rounded-xl ml-3">
+                              <span className="font-bold text-emerald-600 block text-[8px] uppercase font-mono tracking-wider mb-0.5">Your Response:</span>
+                              <p className="text-slate-700 leading-normal">{ansText}</p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Current Active Clarifying Question */}
+                  <div className="space-y-2">
+                    {activeConversation.currentQuestions.map((qText, qIdx) => (
+                      <div 
+                        key={qIdx} 
+                        className="bg-emerald-500/[0.06] backdrop-blur-md border border-emerald-500/15 rounded-xl p-3"
+                      >
+                        <span className="font-black text-emerald-700 block text-[9px] uppercase font-mono tracking-wider mb-1 flex items-center gap-1">
+                          <HelpCircle className="w-3 h-3" />
+                          AI CLARIFYING QUESTION
+                        </span>
+                        <p className="text-slate-800 text-xs leading-relaxed font-semibold">{qText}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Answer input */}
+                  <div className="relative">
+                    <textarea
+                      value={activeAnswerText}
+                      onChange={(e) => setActiveAnswerText(e.target.value)}
+                      placeholder="Provide details..."
+                      rows="3"
+                      className="w-full p-3 glass-input text-xs leading-relaxed resize-none focus:ring-1 focus:ring-green-500"
+                      disabled={submittingConversation}
+                    />
+                    <div className="absolute bottom-2.5 right-2.5 text-[9px] font-mono text-slate-500">
+                      {activeAnswerText.length} chars
+                    </div>
+                  </div>
+
+                  {/* Controls */}
+                  <div className="flex flex-col gap-2.5">
+                    <div className="flex justify-between gap-2">
+                      <button
+                        type="button"
+                        onClick={handleConversationCancel}
+                        disabled={submittingConversation}
+                        className="py-2 px-3 rounded-lg text-xs font-bold text-rose-600 hover:bg-rose-50 transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        Cancel
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleConversationSkip}
+                        disabled={submittingConversation}
+                        className="py-2 px-3 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50 border border-slate-200 transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                      >
+                        <ArrowRight className="w-3 h-3" />
+                        Skip & Save
+                      </button>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={submittingConversation || !activeAnswerText.trim()}
+                      className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer
+                        ${submittingConversation || !activeAnswerText.trim()
+                          ? 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300'
+                          : 'bg-emerald-600 text-white hover:bg-emerald-500 active:scale-[0.98]'
+                        }`}
+                    >
+                      {submittingConversation ? (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          Analyzing...
+                        </>
+                      ) : (
+                        <>
+                          Continue Handshake
+                          <Send className="w-3.5 h-3.5" />
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <form onSubmit={handleLogSubmit} className="space-y-4">
+                  <textarea
+                    value={journalText}
+                    onChange={(e) => setJournalText(e.target.value)}
+                    placeholder="Describe your activities today... (e.g. 'I rode the train to work, ate a vegetarian salad, and didn't use any heating')"
+                    rows="4"
+                    className="w-full p-4 glass-input text-sm leading-relaxed resize-none focus:ring-1 focus:ring-green-500"
+                    disabled={submitting}
+                  />
                   
-                  <button
-                    type="submit"
-                    disabled={submitting || !journalText.trim()}
-                    className={`py-2.5 px-5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all
-                      ${submitting || !journalText.trim()
-                        ? 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300'
-                        : 'bg-green-600 text-white hover:bg-green-500 active:scale-[0.98]'
-                      }`}
-                  >
-                    {submitting ? (
-                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <>
-                        Sync Log
-                        <Send className="w-3.5 h-3.5" />
-                      </>
-                    )}
-                  </button>
-                </div>
-              </form>
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] text-slate-500 font-mono">
+                      {journalText.length} chars
+                    </span>
+                    
+                    <button
+                      type="submit"
+                      disabled={submitting || !journalText.trim()}
+                      className={`py-2.5 px-5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all
+                        ${submitting || !journalText.trim()
+                          ? 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300'
+                          : 'bg-green-600 text-white hover:bg-green-500 active:scale-[0.98]'
+                        }`}
+                    >
+                      {submitting ? (
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <>
+                          Sync Log
+                          <Send className="w-3.5 h-3.5" />
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              )}
 
               {/* Progress log in bottom sheet */}
               {submitting && (
