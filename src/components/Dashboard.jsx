@@ -251,10 +251,6 @@ export default function Dashboard({
   const [activeTab, setActiveTab] = useState('feed') // 'feed', 'new-entry', 'analytics', 'settings'
   const [showMobileEntrySheet, setShowMobileEntrySheet] = useState(false)
 
-  // Reset scroll position when activeTab changes (prevents blank screen due to page scroll)
-  useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'instant' })
-  }, [activeTab])
   
   // Database States
   const [profile, setProfile] = useState(null)
@@ -2181,7 +2177,7 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
       </header>
 
       {/* Main Container */}
-      <main className={`flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 gap-6 relative z-10 ${activeTab === 'feed' ? 'grid grid-cols-1 lg:grid-cols-12' : 'hidden md:grid md:grid-cols-1 lg:grid-cols-12'}`}>
+      <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 gap-6 relative z-10 grid grid-cols-1 lg:grid-cols-12">
         
         {/* Middle Area: Interactive Terminal + Feed Logs */}
         <section className="lg:col-span-12 flex flex-col gap-6">
@@ -2447,6 +2443,117 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
                 </motion.div>
               )}
             </AnimatePresence>
+          </div>
+
+          {/* Mobile-Only Emission Analytics Breakdown (replaces tab switching) */}
+          <div className="block md:hidden glass-panel rounded-3xl p-5 border border-green-100/50 relative">
+            <h4 className="text-xs font-bold text-green-800 uppercase tracking-wider font-mono border-b border-green-100/40 pb-2 mb-4">
+              EMISSION BREAKDOWN
+            </h4>
+            {logsCount === 0 ? (
+              <div className="py-8 text-center text-xs text-slate-400 font-mono">
+                Awaiting carbon entry data...
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex justify-around items-center mb-6 py-2">
+                  <div className="text-center">
+                    <span className="text-2xl font-black text-slate-800 block"><AnimatedCounter value={averageFootprint} /></span>
+                    <span className="text-[9px] text-slate-500 uppercase font-mono tracking-wider font-bold">Avg kg CO2</span>
+                  </div>
+                  <div className="text-center flex flex-col items-center">
+                    <span className="text-2xl font-black text-green-600 block"><AnimatedCounter value={averageEfficiency} />%</span>
+                    <div className="flex items-center gap-1.5 justify-center relative group">
+                      <span className="text-[9px] text-slate-500 uppercase font-mono tracking-wider font-bold">5-Day Rolling Efficiency</span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setShowAnalyticsTooltip(!showAnalyticsTooltip)
+                        }}
+                        onMouseEnter={() => setShowAnalyticsTooltip(true)}
+                        onMouseLeave={() => setShowAnalyticsTooltip(false)}
+                        className="info-tooltip-trigger p-1 -m-1 text-slate-400 hover:text-emerald-500 transition-colors cursor-pointer focus:outline-none flex items-center justify-center shrink-0"
+                        title="View Guide"
+                      >
+                        <Info className="w-3.5 h-3.5" />
+                      </button>
+                      
+                      {/* Tooltip Content */}
+                      <div className={`absolute left-1/2 transform -translate-x-1/2 bottom-7 w-72 bg-emerald-950/95 backdrop-blur border border-emerald-500/20 text-emerald-100 rounded-2xl p-4 shadow-2xl transition-all duration-300 z-[60] pointer-events-none text-xs leading-relaxed text-left opacity-0 invisible group-hover:opacity-100 group-hover:visible`}>
+                        <div className="font-bold text-emerald-400 mb-1.5 font-mono tracking-wider uppercase text-[10px]">
+                          5-Day Efficiency Guide
+                        </div>
+                        <div className="space-y-2 text-slate-300 text-[10.5px]">
+                          <div>
+                            <span className="font-bold text-white block mb-0.5">Calculation Method:</span>
+                            <p className="leading-normal">
+                              Your daily efficiency score (1.0 to 10.0) is assigned by AI based on carbon intensity. We compute the rolling average of your last 5 active days, scaled to 0-100%.
+                            </p>
+                          </div>
+                          <div>
+                            <span className="font-bold text-white block mb-0.5">Excluded Logs:</span>
+                            <p className="leading-normal">
+                              If a log contains no carbon-calculable activities, it is marked as non-calculable (no points/footprint) and is omitted from all averages (rather than being counted as zero).
+                            </p>
+                          </div>
+                          <div>
+                            <span className="font-bold text-white block mb-0.5">Rank Brackets:</span>
+                            <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 mt-0.5 text-[10px] font-mono">
+                              <span className="text-sky-400">9.0+ : Eco Vanguard</span>
+                              <span className="text-emerald-400">7.0+ : Earth Guardian</span>
+                              <span className="text-orange-400">4.0+ : Sustainability Seeker</span>
+                              <span className="text-yellow-400">1.0+ : Carbon Beginner</span>
+                            </div>
+                          </div>
+                          <div>
+                            <span className="font-bold text-white block mb-0.5">Strategies to Improve:</span>
+                            <ul className="list-disc pl-3.5 space-y-0.5 leading-normal">
+                              <li>Prefer public or active transit over single-passenger cars.</li>
+                              <li>Adopt a plant-based diet (less meat & dairy).</li>
+                              <li>Reduce home energy & switch off idle appliances.</li>
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {categories.map((cat) => {
+                    const count = categoryCounts[cat] || 0
+                    const emissions = categoryEmissions[cat] || 0
+                    const emissionPercent = totalKg > 0 ? (emissions / totalKg) * 100 : 0
+
+                    if (count === 0) return null
+
+                    return (
+                      <div key={cat} className="space-y-1">
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="text-slate-700 font-bold capitalize flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: categoryColors[cat] }} />
+                            {cat}
+                          </span>
+                          <span className="text-slate-500 font-mono text-[10px] font-bold">
+                            {emissions.toFixed(1)} kg ({Math.round(emissionPercent)}%)
+                          </span>
+                        </div>
+                        <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full rounded-full"
+                            style={{ 
+                              width: `${Math.max(5, emissionPercent)}%`, 
+                              backgroundColor: categoryColors[cat] 
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Sync History Logs */}
@@ -3114,125 +3221,6 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
 
       </main>
 
-      {/* Mobile-Only Dashboard Subsections depending on Tab state */}
-      {activeTab === 'analytics' && (
-        <div className="md:hidden px-4 py-2 relative z-20 flex-1 flex flex-col gap-6 pb-24">
-          <div className="glass-panel rounded-3xl p-5 border border-green-100/50 mb-8 mt-2">
-            <h4 className="text-xs font-bold text-green-800 uppercase tracking-wider font-mono border-b border-green-100/40 pb-2 mb-4">
-              EMISSION BREAKDOWN
-            </h4>
-            {logsCount === 0 ? (
-              <div className="py-8 text-center text-xs text-slate-400 font-mono">
-                Awaiting carbon entry data...
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="flex justify-around items-center mb-6 py-2">
-                  <div className="text-center">
-                    <span className="text-2xl font-black text-slate-800 block"><AnimatedCounter value={averageFootprint} /></span>
-                    <span className="text-[9px] text-slate-500 uppercase font-mono tracking-wider font-bold">Avg kg CO2</span>
-                  </div>
-                  <div className="text-center flex flex-col items-center">
-                    <span className="text-2xl font-black text-green-600 block"><AnimatedCounter value={averageEfficiency} />%</span>
-                    <div className="flex items-center gap-1.5 justify-center relative group">
-                      <span className="text-[9px] text-slate-500 uppercase font-mono tracking-wider font-bold">5-Day Rolling Efficiency</span>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setShowAnalyticsTooltip(!showAnalyticsTooltip)
-                        }}
-                        onMouseEnter={() => setShowAnalyticsTooltip(true)}
-                        onMouseLeave={() => setShowAnalyticsTooltip(false)}
-                        className="info-tooltip-trigger p-1 -m-1 text-slate-400 hover:text-emerald-500 transition-colors cursor-pointer focus:outline-none flex items-center justify-center shrink-0"
-                        title="View Guide"
-                      >
-                        <Info className="w-3.5 h-3.5" />
-                      </button>
-                      
-                      {/* Tooltip Content */}
-                      <div className={`absolute left-1/2 transform -translate-x-1/2 bottom-7 w-72 bg-emerald-950/95 backdrop-blur border border-emerald-500/20 text-emerald-100 rounded-2xl p-4 shadow-2xl transition-all duration-300 z-[60] pointer-events-none text-xs leading-relaxed text-left ${
-                        showAnalyticsTooltip 
-                          ? 'opacity-100 visible' 
-                          : 'opacity-0 invisible group-hover:opacity-100 group-hover:visible'
-                      }`}>
-                        <div className="font-bold text-emerald-400 mb-1.5 font-mono tracking-wider uppercase text-[10px]">
-                          5-Day Efficiency Guide
-                        </div>
-                        <div className="space-y-2 text-slate-300 text-[10.5px]">
-                          <div>
-                            <span className="font-bold text-white block mb-0.5">Calculation Method:</span>
-                            <p className="leading-normal">
-                              Your daily efficiency score (1.0 to 10.0) is assigned by AI based on carbon intensity. We compute the rolling average of your last 5 active days, scaled to 0-100%.
-                            </p>
-                          </div>
-                          <div>
-                            <span className="font-bold text-white block mb-0.5">Excluded Logs:</span>
-                            <p className="leading-normal">
-                              If a log contains no carbon-calculable activities, it is marked as non-calculable (no points/footprint) and is omitted from all averages (rather than being counted as zero).
-                            </p>
-                          </div>
-                          <div>
-                            <span className="font-bold text-white block mb-0.5">Rank Brackets:</span>
-                            <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 mt-0.5 text-[10px] font-mono">
-                              <span className="text-sky-400">9.0+ : Eco Vanguard</span>
-                              <span className="text-emerald-400">7.0+ : Earth Guardian</span>
-                              <span className="text-orange-400">4.0+ : Sustainability Seeker</span>
-                              <span className="text-yellow-400">1.0+ : Carbon Beginner</span>
-                            </div>
-                          </div>
-                          <div>
-                            <span className="font-bold text-white block mb-0.5">Strategies to Improve:</span>
-                            <ul className="list-disc pl-3.5 space-y-0.5 leading-normal">
-                              <li>Prefer public or active transit over single-passenger cars.</li>
-                              <li>Adopt a plant-based diet (less meat & dairy).</li>
-                              <li>Reduce home energy & switch off idle appliances.</li>
-                            </ul>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  {categories.map((cat) => {
-                    const count = categoryCounts[cat] || 0
-                    const emissions = categoryEmissions[cat] || 0
-                    const emissionPercent = totalKg > 0 ? (emissions / totalKg) * 100 : 0
-
-                    if (count === 0) return null
-
-                    return (
-                      <div key={cat} className="space-y-1">
-                        <div className="flex justify-between items-center text-xs">
-                          <span className="text-slate-700 font-bold capitalize flex items-center gap-1.5">
-                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: categoryColors[cat] }} />
-                            {cat}
-                          </span>
-                          <span className="text-slate-500 font-mono text-[10px] font-bold">
-                            {emissions.toFixed(1)} kg ({Math.round(emissionPercent)}%)
-                          </span>
-                        </div>
-                        <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full rounded-full"
-                            style={{ 
-                              width: `${Math.max(5, emissionPercent)}%`, 
-                              backgroundColor: categoryColors[cat] 
-                            }}
-                          />
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* Mobile-Only Navigation Sticky Bottom Menu */}
       <footer 
         style={{ 
@@ -3240,20 +3228,10 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
           paddingBottom: 'calc(8px + env(safe-area-inset-bottom))', 
           paddingTop: '8px' 
         }}
-        className="md:hidden fixed bottom-0 left-0 right-0 z-40 pointer-events-auto border-t border-green-100/50 px-6 flex justify-around items-center overflow-hidden"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-40 pointer-events-auto border-t border-green-100/50 px-6 flex justify-center items-center overflow-hidden"
       >
         {/* Sibling glassmorphic background layer to avoid iOS Safari/Chrome backdrop-filter event-swallowing bugs */}
         <div className="absolute inset-0 z-0 bg-white/50 backdrop-blur-xl" style={{ backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)' }} />
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('feed')}
-          style={{ zIndex: 10 }}
-          className={`relative flex-1 py-2 flex flex-col items-center justify-center gap-1 cursor-pointer select-none touch-manipulation transition-colors ${activeTab === 'feed' ? 'text-green-600 font-bold' : 'text-slate-400'}`}
-        >
-          <History className="w-5 h-5" />
-          <span className="text-[9px] font-medium">Ledger Feed</span>
-        </button>
 
         {/* Center Floating Plus trigger */}
         <button
@@ -3263,16 +3241,6 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
           className="relative w-12 h-12 rounded-full bg-green-600 hover:bg-green-500 text-white flex items-center justify-center -translate-y-4 shadow-lg shadow-green-600/20 border border-white active:scale-[0.95] transition-transform cursor-pointer touch-manipulation"
         >
           <Plus className="w-6 h-6" />
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('analytics')}
-          style={{ zIndex: 10 }}
-          className={`relative flex-1 py-2 flex flex-col items-center justify-center gap-1 cursor-pointer select-none touch-manipulation transition-colors ${activeTab === 'analytics' ? 'text-green-600 font-bold' : 'text-slate-400'}`}
-        >
-          <BarChart3 className="w-5 h-5" />
-          <span className="text-[9px] font-medium">Analytics</span>
         </button>
       </footer>
 
