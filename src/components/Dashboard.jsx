@@ -8,7 +8,7 @@ import {
   Settings, Database, Leaf, Car, Utensils, Zap, ShoppingBag, 
   Layers, Globe, CheckCircle2, ShieldAlert, Terminal, Flame, Trees,
   XCircle, AlertTriangle, Compass, BookOpen, HelpCircle, Check,
-  ArrowRight, Activity
+  ArrowRight, Activity, Menu
 } from 'lucide-react'
 import { toPng } from 'html-to-image'
 
@@ -270,6 +270,8 @@ export default function Dashboard({
   const [showCertificate, setShowCertificate] = useState(false)
   const [showProfileDropdown, setShowProfileDropdown] = useState(false)
   const profileDropdownRef = useRef(null)
+  const [showMobileMenuDropdown, setShowMobileMenuDropdown] = useState(false)
+  const mobileMenuDropdownRef = useRef(null)
   const [avatarImg, setAvatarImg] = useState('')
   const [modelsError, setModelsError] = useState('')
   const [submitError, setSubmitError] = useState('')
@@ -299,11 +301,14 @@ export default function Dashboard({
   const [activeAnswerText, setActiveAnswerText] = useState('')
   const [submittingConversation, setSubmittingConversation] = useState(false)
 
-  // Profile dropdown click outside handler
+  // Profile & Mobile Menu dropdown click outside handler
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target)) {
         setShowProfileDropdown(false)
+      }
+      if (mobileMenuDropdownRef.current && !mobileMenuDropdownRef.current.contains(event.target)) {
+        setShowMobileMenuDropdown(false)
       }
       if (!event.target.closest('.info-tooltip-trigger')) {
         setShowProfileTooltip(false)
@@ -1846,6 +1851,44 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
       {/* Main Top Header */}
       <header className="sticky top-0 z-40 w-full glass-panel border-b border-green-100/50 px-6 py-4 flex items-center justify-between relative">
         <div className="flex items-center gap-3">
+          {/* Mobile Menu Dropdown — ONLY visible on mobile and for admin users */}
+          {adminConfig && user?.isAdmin && (
+            <div className="relative md:hidden" ref={mobileMenuDropdownRef}>
+              <button
+                onClick={() => setShowMobileMenuDropdown(!showMobileMenuDropdown)}
+                className="w-10 h-10 rounded-xl bg-gradient-to-tr from-green-500/10 to-emerald-500/10 hover:from-green-500/20 hover:to-emerald-500/20 border border-green-200/60 flex items-center justify-center text-green-700 cursor-pointer shadow-sm hover:scale-105 active:scale-95 transition-all select-none"
+                title="Admin Menu"
+              >
+                <Menu className="w-5 h-5 text-green-600" />
+              </button>
+              
+              {showMobileMenuDropdown && (
+                <div className="absolute left-0 mt-3 w-48 bg-white/95 backdrop-blur-md border border-green-100/50 shadow-2xl rounded-2xl p-2.5 z-50 flex flex-col gap-1.5">
+                  <button
+                    onClick={() => {
+                      setShowAdminPanel(true)
+                      setShowMobileMenuDropdown(false)
+                    }}
+                    className="w-full px-3 py-2 rounded-xl text-xs font-bold font-mono text-green-700 hover:bg-green-50 flex items-center gap-2 transition-all text-left cursor-pointer"
+                  >
+                    <Settings className="w-4 h-4 text-green-600" />
+                    <span>Admin Configs</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      onLogout()
+                      setShowMobileMenuDropdown(false)
+                    }}
+                    className="w-full px-3 py-2 rounded-xl text-xs font-bold font-mono text-rose-600 hover:bg-rose-50 flex items-center gap-2 transition-all text-left cursor-pointer"
+                  >
+                    <LogOut className="w-4 h-4 text-green-600" />
+                    <span>Disconnect</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Profile Dropdown Menu trigger */}
           <div className="relative" ref={profileDropdownRef}>
             <button
@@ -2087,11 +2130,8 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
             <Leaf className="w-5 h-5 text-green-600" />
           </div>
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-slate-800 flex items-center gap-2 font-title">
+            <h1 className="text-xl font-bold tracking-tight text-slate-800 font-title">
               AETHER CARBON
-              <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-green-500/10 border border-green-500/20 text-green-700">
-                SYNC
-              </span>
             </h1>
           </div>
         </div>
@@ -2105,9 +2145,9 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
 
         <div className="flex items-center gap-4">
 
-           {/* Admin Config Dropdown Button — ONLY visible to admin device users */}
+           {/* Admin Config Dropdown Button — ONLY visible to admin device users on desktop */}
           {adminConfig && user?.isAdmin && (
-            <div className="relative">
+            <div className="relative hidden md:block">
               <button
                 onClick={() => setShowAdminPanel(!showAdminPanel)}
                 className={`p-2 rounded-xl border transition-all flex items-center gap-2 text-xs font-bold font-mono cursor-pointer
@@ -2122,9 +2162,11 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
             </div>
           )}
 
+          {/* Exit Button — visible on desktop, or on mobile only for normal users */}
           <button
             onClick={onLogout}
-            className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100/60 border border-slate-200/50 hover:border-slate-300/60 rounded-xl transition-all flex items-center gap-2 text-xs font-bold"
+            className={`p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100/60 border border-slate-200/50 hover:border-slate-300/60 rounded-xl transition-all flex items-center gap-2 text-xs font-bold
+              ${adminConfig && user?.isAdmin ? 'hidden md:flex' : 'flex'}`}
             title="Log Out"
           >
             <LogOut className="w-4 h-4 text-green-600" />
