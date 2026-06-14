@@ -3240,12 +3240,16 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
           paddingBottom: 'calc(8px + env(safe-area-inset-bottom))', 
           paddingTop: '8px' 
         }}
-        className="md:hidden fixed bottom-0 left-0 right-0 z-40 pointer-events-auto glass-panel border-t border-green-100/50 px-6 flex justify-around items-center bg-white/30 backdrop-blur-md"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-40 pointer-events-auto border-t border-green-100/50 px-6 flex justify-around items-center overflow-hidden"
       >
+        {/* Sibling glassmorphic background layer to avoid iOS Safari/Chrome backdrop-filter event-swallowing bugs */}
+        <div className="absolute inset-0 z-0 bg-white/50 backdrop-blur-xl" style={{ backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)' }} />
+
         <button
           type="button"
           onClick={() => setActiveTab('feed')}
-          className={`flex-1 py-2 flex flex-col items-center justify-center gap-1 cursor-pointer select-none touch-manipulation transition-colors ${activeTab === 'feed' ? 'text-green-600 font-bold' : 'text-slate-400'}`}
+          style={{ zIndex: 10 }}
+          className={`relative flex-1 py-2 flex flex-col items-center justify-center gap-1 cursor-pointer select-none touch-manipulation transition-colors ${activeTab === 'feed' ? 'text-green-600 font-bold' : 'text-slate-400'}`}
         >
           <History className="w-5 h-5" />
           <span className="text-[9px] font-medium">Ledger Feed</span>
@@ -3255,7 +3259,8 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
         <button
           type="button"
           onClick={() => setShowMobileEntrySheet(true)}
-          className="w-12 h-12 rounded-full bg-green-600 hover:bg-green-500 text-white flex items-center justify-center -translate-y-4 shadow-lg shadow-green-600/20 border border-white active:scale-[0.95] transition-transform cursor-pointer touch-manipulation"
+          style={{ zIndex: 10 }}
+          className="relative w-12 h-12 rounded-full bg-green-600 hover:bg-green-500 text-white flex items-center justify-center -translate-y-4 shadow-lg shadow-green-600/20 border border-white active:scale-[0.95] transition-transform cursor-pointer touch-manipulation"
         >
           <Plus className="w-6 h-6" />
         </button>
@@ -3263,7 +3268,8 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
         <button
           type="button"
           onClick={() => setActiveTab('analytics')}
-          className={`flex-1 py-2 flex flex-col items-center justify-center gap-1 cursor-pointer select-none touch-manipulation transition-colors ${activeTab === 'analytics' ? 'text-green-600 font-bold' : 'text-slate-400'}`}
+          style={{ zIndex: 10 }}
+          className={`relative flex-1 py-2 flex flex-col items-center justify-center gap-1 cursor-pointer select-none touch-manipulation transition-colors ${activeTab === 'analytics' ? 'text-green-600 font-bold' : 'text-slate-400'}`}
         >
           <BarChart3 className="w-5 h-5" />
           <span className="text-[9px] font-medium">Analytics</span>
