@@ -2130,8 +2130,11 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
             <Leaf className="w-5 h-5 text-green-600" />
           </div>
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-slate-800 font-title">
+            <h1 className="text-xl font-bold tracking-tight text-slate-800 flex items-center gap-2 font-title">
               AETHER CARBON
+              <span className="hidden md:inline-block text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-green-500/10 border border-green-500/20 text-green-700">
+                SYNC
+              </span>
             </h1>
           </div>
         </div>
