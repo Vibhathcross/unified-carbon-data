@@ -3109,33 +3109,6 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
 
       </main>
 
-      {/* Mobile-Only Navigation Sticky Bottom Menu */}
-      <footer className="md:hidden fixed bottom-0 left-0 right-0 z-50 glass-panel border-t border-green-100/50 px-6 py-2 flex justify-around items-center bg-white/30 backdrop-blur-md">
-        <button
-          onClick={() => setActiveTab('feed')}
-          className={`flex flex-col items-center gap-1 p-2 ${activeTab === 'feed' ? 'text-green-600 font-bold' : 'text-slate-400'}`}
-        >
-          <History className="w-5 h-5" />
-          <span className="text-[9px] font-medium">Ledger Feed</span>
-        </button>
-
-        {/* Center Floating Plus trigger */}
-        <button
-          onClick={() => setShowMobileEntrySheet(true)}
-          className="w-12 h-12 rounded-full bg-green-600 hover:bg-green-500 text-white flex items-center justify-center -translate-y-4 shadow-lg shadow-green-600/20 border border-white active:scale-[0.95] transition-transform"
-        >
-          <Plus className="w-6 h-6" />
-        </button>
-
-        <button
-          onClick={() => setActiveTab('analytics')}
-          className={`flex flex-col items-center gap-1 p-2 ${activeTab === 'analytics' ? 'text-green-600 font-bold' : 'text-slate-400'}`}
-        >
-          <BarChart3 className="w-5 h-5" />
-          <span className="text-[9px] font-medium">Analytics</span>
-        </button>
-      </footer>
-
       {/* Mobile-Only Dashboard Subsections depending on Tab state */}
       <div className="md:hidden px-4 py-2 relative z-20 flex-1 flex flex-col gap-6">
         {activeTab === 'analytics' && (
@@ -3173,7 +3146,7 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
                       </button>
                       
                       {/* Tooltip Content */}
-                      <div className={`absolute left-1/2 transform -translate-x-1/2 bottom-7 w-72 bg-emerald-950/95 backdrop-blur border border-emerald-500/20 text-emerald-100 rounded-2xl p-4 shadow-2xl transition-all duration-300 z-50 pointer-events-none text-xs leading-relaxed text-left ${
+                      <div className={`absolute left-1/2 transform -translate-x-1/2 bottom-7 w-72 bg-emerald-950/95 backdrop-blur border border-emerald-500/20 text-emerald-100 rounded-2xl p-4 shadow-2xl transition-all duration-300 z-[60] pointer-events-none text-xs leading-relaxed text-left ${
                         showAnalyticsTooltip 
                           ? 'opacity-100 visible' 
                           : 'opacity-0 invisible group-hover:opacity-100 group-hover:visible'
@@ -3254,6 +3227,36 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
           </div>
         )}
       </div>
+
+      {/* Mobile-Only Navigation Sticky Bottom Menu */}
+      <footer className="md:hidden fixed bottom-0 left-0 right-0 z-[90] glass-panel border-t border-green-100/50 px-6 py-2 flex justify-around items-center bg-white/30 backdrop-blur-md">
+        <button
+          type="button"
+          onClick={() => setActiveTab('feed')}
+          className={`flex flex-col items-center gap-1 p-2 cursor-pointer ${activeTab === 'feed' ? 'text-green-600 font-bold' : 'text-slate-400'}`}
+        >
+          <History className="w-5 h-5" />
+          <span className="text-[9px] font-medium">Ledger Feed</span>
+        </button>
+
+        {/* Center Floating Plus trigger */}
+        <button
+          type="button"
+          onClick={() => setShowMobileEntrySheet(true)}
+          className="w-12 h-12 rounded-full bg-green-600 hover:bg-green-500 text-white flex items-center justify-center -translate-y-4 shadow-lg shadow-green-600/20 border border-white active:scale-[0.95] transition-transform cursor-pointer"
+        >
+          <Plus className="w-6 h-6" />
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('analytics')}
+          className={`flex flex-col items-center gap-1 p-2 cursor-pointer ${activeTab === 'analytics' ? 'text-green-600 font-bold' : 'text-slate-400'}`}
+        >
+          <BarChart3 className="w-5 h-5" />
+          <span className="text-[9px] font-medium">Analytics</span>
+        </button>
+      </footer>
 
       {/* Mobile-Only Slide-Up Bottom Sheet for New Journal Entry */}
       <AnimatePresence>
