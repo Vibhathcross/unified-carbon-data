@@ -3222,27 +3222,15 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
       </main>
 
       {/* Mobile-Only Navigation Sticky Bottom Menu */}
-      <footer 
-        style={{ 
-          zIndex: 45, 
-          paddingBottom: 'calc(8px + env(safe-area-inset-bottom))', 
-          paddingTop: '8px' 
-        }}
-        className="md:hidden fixed bottom-0 left-0 right-0 z-40 pointer-events-auto border-t border-green-100/50 px-6 flex justify-center items-center overflow-hidden"
+      {/* Mobile-Only Floating Action Button (FAB) for entry sheet */}
+      <button
+        type="button"
+        onClick={() => setShowMobileEntrySheet(true)}
+        style={{ zIndex: 45, bottom: 'calc(20px + env(safe-area-inset-bottom))' }}
+        className="md:hidden fixed left-1/2 -translate-x-1/2 w-14 h-14 rounded-full bg-green-600 hover:bg-green-500 text-white flex items-center justify-center shadow-2xl shadow-green-600/35 border border-white active:scale-[0.95] transition-transform cursor-pointer touch-manipulation"
       >
-        {/* Sibling glassmorphic background layer to avoid iOS Safari/Chrome backdrop-filter event-swallowing bugs */}
-        <div className="absolute inset-0 z-0 bg-white/50 backdrop-blur-xl" style={{ backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)' }} />
-
-        {/* Center Floating Plus trigger */}
-        <button
-          type="button"
-          onClick={() => setShowMobileEntrySheet(true)}
-          style={{ zIndex: 10 }}
-          className="relative w-12 h-12 rounded-full bg-green-600 hover:bg-green-500 text-white flex items-center justify-center -translate-y-4 shadow-lg shadow-green-600/20 border border-white active:scale-[0.95] transition-transform cursor-pointer touch-manipulation"
-        >
-          <Plus className="w-6 h-6" />
-        </button>
-      </footer>
+        <Plus className="w-7 h-7" />
+      </button>
 
       {/* Mobile-Only Slide-Up Bottom Sheet for New Journal Entry */}
       <AnimatePresence>
