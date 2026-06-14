@@ -250,6 +250,11 @@ export default function Dashboard({
   // UI Tabs for Mobile layout
   const [activeTab, setActiveTab] = useState('feed') // 'feed', 'new-entry', 'analytics', 'settings'
   const [showMobileEntrySheet, setShowMobileEntrySheet] = useState(false)
+
+  // Reset scroll position when activeTab changes (prevents blank screen due to page scroll)
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' })
+  }, [activeTab])
   
   // Database States
   const [profile, setProfile] = useState(null)
@@ -3230,13 +3235,17 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
 
       {/* Mobile-Only Navigation Sticky Bottom Menu */}
       <footer 
-        style={{ zIndex: 45 }}
-        className="md:hidden fixed bottom-0 left-0 right-0 z-40 pointer-events-auto glass-panel border-t border-green-100/50 px-6 py-2 flex justify-around items-center bg-white/30 backdrop-blur-md"
+        style={{ 
+          zIndex: 45, 
+          paddingBottom: 'calc(8px + env(safe-area-inset-bottom))', 
+          paddingTop: '8px' 
+        }}
+        className="md:hidden fixed bottom-0 left-0 right-0 z-40 pointer-events-auto glass-panel border-t border-green-100/50 px-6 flex justify-around items-center bg-white/30 backdrop-blur-md"
       >
         <button
           type="button"
           onClick={() => setActiveTab('feed')}
-          className={`flex flex-col items-center gap-1 p-2 cursor-pointer ${activeTab === 'feed' ? 'text-green-600 font-bold' : 'text-slate-400'}`}
+          className={`flex-1 py-2 flex flex-col items-center justify-center gap-1 cursor-pointer select-none touch-manipulation transition-colors ${activeTab === 'feed' ? 'text-green-600 font-bold' : 'text-slate-400'}`}
         >
           <History className="w-5 h-5" />
           <span className="text-[9px] font-medium">Ledger Feed</span>
@@ -3246,7 +3255,7 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
         <button
           type="button"
           onClick={() => setShowMobileEntrySheet(true)}
-          className="w-12 h-12 rounded-full bg-green-600 hover:bg-green-500 text-white flex items-center justify-center -translate-y-4 shadow-lg shadow-green-600/20 border border-white active:scale-[0.95] transition-transform cursor-pointer"
+          className="w-12 h-12 rounded-full bg-green-600 hover:bg-green-500 text-white flex items-center justify-center -translate-y-4 shadow-lg shadow-green-600/20 border border-white active:scale-[0.95] transition-transform cursor-pointer touch-manipulation"
         >
           <Plus className="w-6 h-6" />
         </button>
@@ -3254,7 +3263,7 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
         <button
           type="button"
           onClick={() => setActiveTab('analytics')}
-          className={`flex flex-col items-center gap-1 p-2 cursor-pointer ${activeTab === 'analytics' ? 'text-green-600 font-bold' : 'text-slate-400'}`}
+          className={`flex-1 py-2 flex flex-col items-center justify-center gap-1 cursor-pointer select-none touch-manipulation transition-colors ${activeTab === 'analytics' ? 'text-green-600 font-bold' : 'text-slate-400'}`}
         >
           <BarChart3 className="w-5 h-5" />
           <span className="text-[9px] font-medium">Analytics</span>

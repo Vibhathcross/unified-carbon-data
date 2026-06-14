@@ -223,7 +223,7 @@ export default function App() {
   }
 
   return (
-    <div className="relative min-h-screen select-none overflow-hidden">
+    <div className="relative min-h-screen select-none overflow-x-hidden">
       {/* Base Background Gradient Layer */}
       <div className="fixed inset-0 z-[-30] bg-gradient-to-b from-white via-[#f4fbf7] to-[#eaf5ee] pointer-events-none" />
 
