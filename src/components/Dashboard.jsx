@@ -2176,7 +2176,7 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
       </header>
 
       {/* Main Container */}
-      <main className={`flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 relative z-10 ${activeTab === 'feed' ? '' : 'hidden md:grid'}`}>
+      <main className={`flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 gap-6 relative z-10 ${activeTab === 'feed' ? 'grid grid-cols-1 lg:grid-cols-12' : 'hidden md:grid md:grid-cols-1 lg:grid-cols-12'}`}>
         
         {/* Middle Area: Interactive Terminal + Feed Logs */}
         <section className="lg:col-span-12 flex flex-col gap-6">
