@@ -2067,7 +2067,7 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
                         </button>
                         
                         {/* Tooltip Content */}
-                        <div className={`absolute left-0 bottom-6 w-72 bg-emerald-950/95 backdrop-blur border border-emerald-500/20 text-emerald-100 rounded-2xl p-4 shadow-2xl transition-all duration-300 z-50 pointer-events-none text-xs leading-relaxed text-left ${
+                        <div className={`absolute left-1/2 -translate-x-[45%] md:translate-x-0 md:left-0 bottom-6 w-72 bg-emerald-950/95 backdrop-blur border border-emerald-500/20 text-emerald-100 rounded-2xl p-4 shadow-2xl transition-all duration-300 z-50 pointer-events-none text-xs leading-relaxed text-left ${
                           showProfileTooltip 
                             ? 'opacity-100 visible' 
                             : 'opacity-0 invisible group-hover:opacity-100 group-hover:visible'
@@ -2212,7 +2212,7 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
                 </button>
                 
                 {/* Tooltip Content */}
-                <div className={`absolute left-0 bottom-6 w-80 bg-emerald-950/95 backdrop-blur border border-emerald-500/20 text-emerald-100 rounded-2xl p-4 shadow-2xl transition-all duration-300 z-50 pointer-events-none text-xs leading-relaxed text-left ${
+                <div className={`absolute left-1/2 -translate-x-[55%] md:translate-x-0 md:left-0 bottom-6 w-[280px] sm:w-80 bg-emerald-950/95 backdrop-blur border border-emerald-500/20 text-emerald-100 rounded-2xl p-4 shadow-2xl transition-all duration-300 z-50 pointer-events-none text-xs leading-relaxed text-left ${
                   showLogTooltip 
                     ? 'opacity-100 visible' 
                     : 'opacity-0 invisible'
@@ -3254,9 +3254,56 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
             >
               <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-2" />
               
-              <h3 className="text-sm font-bold text-green-800 uppercase tracking-wider font-mono flex items-center gap-1.5">
+              <h3 className="text-sm font-bold text-green-800 uppercase tracking-wider font-mono flex items-center gap-1.5 relative group">
                 <Database className="w-4 h-4 text-green-600" />
-                RECORD JOURNAL FOOTPRINT
+                <span>RECORD JOURNAL FOOTPRINT</span>
+                
+                <div className="relative inline-block">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setShowLogTooltip(!showLogTooltip)
+                    }}
+                    onMouseEnter={() => setShowLogTooltip(true)}
+                    onMouseLeave={() => setShowLogTooltip(false)}
+                    className="info-tooltip-trigger p-1 -m-1 text-slate-400 hover:text-emerald-500 transition-colors cursor-pointer focus:outline-none flex items-center justify-center shrink-0"
+                    title="View Logging Guide"
+                  >
+                    <Info className="w-3.5 h-3.5" />
+                  </button>
+                  
+                  {/* Tooltip Content */}
+                  <div className={`absolute left-1/2 -translate-x-[55%] bottom-6 w-[280px] sm:w-80 bg-emerald-950/95 backdrop-blur border border-emerald-500/20 text-emerald-100 rounded-2xl p-4 shadow-2xl transition-all duration-300 z-50 pointer-events-none text-xs leading-relaxed text-left ${
+                    showLogTooltip 
+                      ? 'opacity-100 visible' 
+                      : 'opacity-0 invisible'
+                  }`}>
+                    <div className="font-bold text-emerald-400 mb-1.5 font-mono tracking-wider uppercase text-[10px]">
+                      How to log your activities
+                    </div>
+                    <div className="space-y-2 text-slate-300 text-[10.5px]">
+                      <div>
+                        <span className="font-bold text-white block mb-0.5">What to describe:</span>
+                        <p className="leading-normal">
+                          Share any actions from your day that impact your carbon footprint. Mention:
+                        </p>
+                        <ul className="list-disc pl-3.5 mt-1 space-y-0.5 leading-normal">
+                          <li><strong className="text-emerald-400">Transport:</strong> Mode (car, bus, flight, bike) and distance.</li>
+                          <li><strong className="text-emerald-400">Diet:</strong> Meal types (beef, chicken, dairy, vegetarian).</li>
+                          <li><strong className="text-emerald-400">Home Energy:</strong> AC use, heating, laundry.</li>
+                          <li><strong className="text-emerald-400">Shopping & Waste:</strong> Major purchases, recycling.</li>
+                        </ul>
+                      </div>
+                      <div>
+                        <span className="font-bold text-white block mb-0.5">Examples:</span>
+                        <p className="leading-normal italic text-slate-400">
+                          "I commuted 10 km by train, ate a vegetarian curry, and ran a quick laundry load."
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </h3>
 
               {activeConversation ? (
