@@ -8,7 +8,7 @@ import {
   Settings, Database, Leaf, Car, Utensils, Zap, ShoppingBag, 
   Layers, Globe, CheckCircle2, ShieldAlert, Terminal, Flame, Trees,
   XCircle, AlertTriangle, Compass, BookOpen, HelpCircle, Check,
-  ArrowRight, Activity, Menu
+  ArrowRight, Activity, Menu, TrendingUp
 } from 'lucide-react'
 import { toPng } from 'html-to-image'
 
@@ -1757,71 +1757,100 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
                 
                 {/* Introduction */}
                 <div className="text-center max-w-2xl mx-auto space-y-2">
-                  <span className="text-[9px] font-bold text-emerald-600 bg-emerald-100/50 px-2.5 py-1 rounded-full uppercase tracking-wider font-mono">Platform Manual</span>
+                  <span className="text-[9px] font-bold text-emerald-600 bg-emerald-100/50 px-2.5 py-1 rounded-full uppercase tracking-wider font-mono">Your Eco Journey</span>
                   <h3 className="text-xl font-bold text-slate-800">Welcome to Aether Carbon</h3>
                   <p className="text-xs text-slate-500 leading-relaxed">
-                    Aether Carbon is a decentralized matrix designed to log, compute, and synchronize ecological footprint metrics. It turns daily activity tracking into a gamified progression ledger backed by AI and real-time database synchronization.
+                    Aether Carbon is your personal carbon footprint companion. Share your entire day — every commute, meal, and habit — and let our AI analyze your carbon efficiency. Log daily, rank up, and take a beautiful step towards a greener earth.
                   </p>
                 </div>
 
                 {/* Grid of Features */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   
-                  {/* Card 1: Daily Journaling */}
+                  {/* Card 1: How to Journal */}
                   <div className="glass-panel p-5 rounded-2xl border border-slate-100 flex flex-col gap-3">
                     <div className="flex items-center gap-2">
                       <div className="p-1.5 bg-green-500/10 rounded-lg">
                         <Database className="w-4 h-4 text-green-600" />
                       </div>
-                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider font-mono">Daily Journal Console</h4>
+                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider font-mono">Share Your Day</h4>
                     </div>
                     <p className="text-[11.5px] text-slate-500 leading-relaxed">
-                      Describe your day in natural text. Mention commute details, dietary choices, and home utility consumption (like AC, laundry, recycling). 
+                      Write about your entire day in natural language — how you commuted, what you ate, your energy usage at home, and any other activities. The more details you share, the more accurately our AI can calculate your daily carbon footprint.
                     </p>
                     <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-[10.5px] font-mono text-slate-500">
                       <strong className="text-slate-700 block mb-0.5">Example Entry:</strong>
-                      "I rode my bicycle 5 km, ate a beef burger for lunch, and ran the AC at 24°C for 2 hours."
+                      "Today I drove 15 km to work, had a chicken sandwich for lunch, used the AC for 3 hours, and did a load of laundry in warm water."
                     </div>
                   </div>
 
+                  {/* Card 2: Log Daily & Rank Up */}
+                  <div className="glass-panel p-5 rounded-2xl border border-slate-100 flex flex-col gap-3">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-green-500/10 rounded-lg">
+                        <TrendingUp className="w-4 h-4 text-green-600" />
+                      </div>
+                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider font-mono">Log Daily · Rank Up</h4>
+                    </div>
+                    <p className="text-[11.5px] text-slate-500 leading-relaxed">
+                      Consistency is key! Log your activities every day and watch your efficiency score climb. Your rank is calculated from a rolling average of your last 5 active days — each day is a new chance to rank up towards a greener nature.
+                    </p>
+                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-[10.5px]">
+                      <strong className="text-slate-700 block mb-0.5">Rank Progression:</strong>
+                      <div className="space-y-0.5 mt-1 text-slate-500">
+                        <div>🔥 <strong>Carbon Beginner</strong> — Just getting started</div>
+                        <div>🌍 <strong>Sustainability Seeker</strong> — Making conscious choices</div>
+                        <div>🌲 <strong>Earth Guardian</strong> — Living green every day</div>
+                        <div>🏆 <strong>Eco Vanguard</strong> — A true champion of nature</div>
+                      </div>
+                    </div>
+                  </div>
 
-
-                  {/* Card 3: Rank & Badges */}
+                  {/* Card 3: Aether Card */}
                   <div className="glass-panel p-5 rounded-2xl border border-slate-100 flex flex-col gap-3">
                     <div className="flex items-center gap-2">
                       <div className="p-1.5 bg-green-500/10 rounded-lg">
                         <Award className="w-4 h-4 text-green-600" />
                       </div>
-                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider font-mono">Progression & Certificate</h4>
+                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider font-mono">Claim Your Aether Card</h4>
                     </div>
                     <p className="text-[11.5px] text-slate-500 leading-relaxed">
-                      Earn rank titles based on your 5-day efficiency averages. Unlock digital certificates of stewardship that can be generated and printed instantly.
+                      Once you've logged for 5 days, your personal Aether Card unlocks — a beautifully designed digital certificate that showcases your eco rank, avatar, and commitment to the planet. Download it and share it with your favourite people to inspire them to put a beautiful step ahead towards a greener earth.
                     </p>
-                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-[10.5px]">
-                      <strong className="text-slate-700 block mb-0.5">Ranks:</strong>
-                      Carbon Beginner → Sustainability Seeker → Earth Guardian → Eco Vanguard.
+                    <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-100 text-[10.5px] text-emerald-700">
+                      <strong className="block mb-0.5">💚 Inspire Others:</strong>
+                      Share your Aether Card on social media, send it to friends and family — every person you inspire is one more step toward a sustainable future.
                     </div>
                   </div>
 
-                  {/* Card 4: Admin Config */}
+                  {/* Card 4: AI Analysis */}
                   <div className="glass-panel p-5 rounded-2xl border border-slate-100 flex flex-col gap-3">
                     <div className="flex items-center gap-2">
                       <div className="p-1.5 bg-green-500/10 rounded-lg">
-                        <Settings className="w-4 h-4 text-green-600" />
+                        <Sparkles className="w-4 h-4 text-green-600" />
                       </div>
-                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider font-mono">Admin Config Panel</h4>
+                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider font-mono">AI Carbon Analysis</h4>
                     </div>
                     <p className="text-[11.5px] text-slate-500 leading-relaxed">
-                      Configure AI engine parameters. Switch LLM providers (Groq, OpenAI, Gemini, Claude, OpenRouter, Ollama), verify API keys, change model settings, and edit system prompt overrides.
+                      Our compassionate AI reads your journal entry and calculates your carbon footprint with scientific precision. It provides personalized suggestions — never preachy, always supportive — to help you make greener choices step by step.
                     </p>
-                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-[10.5px] font-mono text-slate-500">
-                      <strong className="text-slate-700 block mb-0.5">System Prompt Override:</strong>
-                      Admins can directly edit the prompt used to analyze daily logs.
+                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-[10.5px] text-slate-500">
+                      <strong className="text-slate-700 block mb-0.5">What you get:</strong>
+                      Footprint in kg CO₂, efficiency score, categorized emissions, and actionable tips tailored to your lifestyle.
                     </div>
                   </div>
 
                 </div>
 
+                {/* Inspirational Footer Quote */}
+                <div className="text-center max-w-lg mx-auto pt-2 pb-2">
+                  <p className="text-xs italic text-slate-400 leading-relaxed">
+                    "To sync with nature is to remember that we are not observers, but the ecosystem itself."
+                  </p>
+                  <p className="text-[10px] text-emerald-600 font-mono font-bold mt-2 tracking-wider uppercase">
+                    Every log counts · Every day matters · Be the change
+                  </p>
+                </div>
 
               </div>
 
@@ -1995,10 +2024,20 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
                       </svg>
                       AETHER CARD LOCKED
                     </div>
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-52 bg-slate-900/95 backdrop-blur text-white text-[10px] rounded-xl px-3 py-2.5 shadow-xl pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-50 leading-relaxed text-center font-sans">
-                      <div className="font-bold text-emerald-400 mb-1 font-mono text-[9px] uppercase tracking-wider">Certificate Locked</div>
-                      Log your footprint for <span className="font-bold text-white">{5 - uniqueDaysCount} more day{5 - uniqueDaysCount !== 1 ? 's' : ''}</span> to unlock your Aether Card.
-                      <div className="text-slate-400 mt-1 text-[9px]">({uniqueDaysCount}/5 days logged)</div>
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-60 bg-slate-900/95 backdrop-blur text-white text-[10px] rounded-xl px-3.5 py-3 shadow-xl pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-50 leading-relaxed text-center font-sans">
+                      <div className="font-bold text-emerald-400 mb-1.5 font-mono text-[9px] uppercase tracking-wider">🔒 Aether Card Locked</div>
+                      <p className="text-slate-200 mb-1.5">
+                        Your Aether Card unlocks after <span className="font-bold text-white">5 days</span> of journaling. Keep logging your daily activities to reach the goal!
+                      </p>
+                      <div className="bg-emerald-500/15 border border-emerald-500/20 rounded-lg px-2.5 py-1.5 mb-1.5">
+                        <span className="font-bold text-emerald-400 text-[10px]">{uniqueDaysCount} / 5 days completed</span>
+                        <div className="w-full h-1 bg-slate-700 rounded-full mt-1 overflow-hidden">
+                          <div className="h-full bg-gradient-to-r from-emerald-500 to-green-400 rounded-full transition-all duration-500" style={{ width: `${(uniqueDaysCount / 5) * 100}%` }} />
+                        </div>
+                      </div>
+                      <p className="text-slate-400 text-[9px]">
+                        {5 - uniqueDaysCount} more day{5 - uniqueDaysCount !== 1 ? 's' : ''} to go — you're almost there! 🌱
+                      </p>
                       <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-slate-900/95" />
                     </div>
                   </div>
@@ -2067,7 +2106,7 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
                         </button>
                         
                         {/* Tooltip Content */}
-                        <div className={`absolute left-1/2 -translate-x-[45%] md:translate-x-0 md:left-0 bottom-6 w-72 bg-emerald-950/95 backdrop-blur border border-emerald-500/20 text-emerald-100 rounded-2xl p-4 shadow-2xl transition-all duration-300 z-50 pointer-events-none text-xs leading-relaxed text-left ${
+                        <div className={`fixed md:absolute left-1/2 -translate-x-1/2 md:left-0 md:translate-x-0 bottom-16 md:bottom-6 w-[calc(100vw-2rem)] max-w-[17rem] md:max-w-72 max-h-[50vh] overflow-y-auto bg-emerald-950/95 backdrop-blur border border-emerald-500/20 text-emerald-100 rounded-2xl p-3 md:p-4 shadow-2xl transition-all duration-300 z-[100] pointer-events-auto text-xs leading-relaxed text-left overscroll-contain ${
                           showProfileTooltip 
                             ? 'opacity-100 visible' 
                             : 'opacity-0 invisible group-hover:opacity-100 group-hover:visible'
@@ -2212,7 +2251,7 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
                 </button>
                 
                 {/* Tooltip Content */}
-                <div className={`absolute left-1/2 -translate-x-[55%] md:translate-x-0 md:left-0 bottom-6 w-[280px] sm:w-80 bg-emerald-950/95 backdrop-blur border border-emerald-500/20 text-emerald-100 rounded-2xl p-4 shadow-2xl transition-all duration-300 z-50 pointer-events-none text-xs leading-relaxed text-left ${
+                <div className={`fixed md:absolute left-1/2 -translate-x-1/2 md:left-0 md:translate-x-0 bottom-16 md:bottom-6 w-[calc(100vw-2rem)] max-w-[17rem] md:max-w-80 max-h-[50vh] overflow-y-auto bg-emerald-950/95 backdrop-blur border border-emerald-500/20 text-emerald-100 rounded-2xl p-3 md:p-4 shadow-2xl transition-all duration-300 z-[100] pointer-events-auto text-xs leading-relaxed text-left overscroll-contain ${
                   showLogTooltip 
                     ? 'opacity-100 visible' 
                     : 'opacity-0 invisible'
@@ -2480,7 +2519,11 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
                       </button>
                       
                       {/* Tooltip Content */}
-                      <div className={`absolute left-1/2 transform -translate-x-1/2 bottom-7 w-72 bg-emerald-950/95 backdrop-blur border border-emerald-500/20 text-emerald-100 rounded-2xl p-4 shadow-2xl transition-all duration-300 z-[60] pointer-events-none text-xs leading-relaxed text-left opacity-0 invisible group-hover:opacity-100 group-hover:visible`}>
+                      <div className={`fixed md:absolute left-1/2 -translate-x-1/2 bottom-16 md:bottom-7 w-[calc(100vw-2rem)] max-w-[17rem] md:max-w-72 max-h-[50vh] overflow-y-auto bg-emerald-950/95 backdrop-blur border border-emerald-500/20 text-emerald-100 rounded-2xl p-3 md:p-4 shadow-2xl transition-all duration-300 z-[100] pointer-events-auto text-xs leading-relaxed text-left overscroll-contain ${
+                        showAnalyticsTooltip 
+                          ? 'opacity-100 visible' 
+                          : 'opacity-0 invisible group-hover:opacity-100 group-hover:visible'
+                      }`}>
                         <div className="font-bold text-emerald-400 mb-1.5 font-mono tracking-wider uppercase text-[10px]">
                           5-Day Efficiency Guide
                         </div>
@@ -3274,7 +3317,7 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
                   </button>
                   
                   {/* Tooltip Content */}
-                  <div className={`absolute left-1/2 -translate-x-[55%] bottom-6 w-[280px] sm:w-80 bg-emerald-950/95 backdrop-blur border border-emerald-500/20 text-emerald-100 rounded-2xl p-4 shadow-2xl transition-all duration-300 z-50 pointer-events-none text-xs leading-relaxed text-left ${
+                  <div className={`fixed md:absolute left-1/2 -translate-x-1/2 md:left-0 md:translate-x-0 bottom-16 md:bottom-6 w-[calc(100vw-2rem)] max-w-[17rem] md:max-w-80 max-h-[50vh] overflow-y-auto bg-emerald-950/95 backdrop-blur border border-emerald-500/20 text-emerald-100 rounded-2xl p-3 md:p-4 shadow-2xl transition-all duration-300 z-[100] pointer-events-auto text-xs leading-relaxed text-left overscroll-contain ${
                     showLogTooltip 
                       ? 'opacity-100 visible' 
                       : 'opacity-0 invisible'
