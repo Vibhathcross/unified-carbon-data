@@ -271,6 +271,14 @@ export default function Dashboard({
   const [showCertificate, setShowCertificate] = useState(false)
   const [showProfileDropdown, setShowProfileDropdown] = useState(false)
   const profileDropdownRef = useRef(null)
+  
+  // Profile settings state
+  const [editingProfile, setEditingProfile] = useState(false)
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [profileUpdateStatus, setProfileUpdateStatus] = useState('')
+  const [profileUpdateError, setProfileUpdateError] = useState('')
+  const [updatingProfile, setUpdatingProfile] = useState(false)
   const [showMobileMenuDropdown, setShowMobileMenuDropdown] = useState(false)
   const mobileMenuDropdownRef = useRef(null)
   const [avatarImg, setAvatarImg] = useState('')
@@ -374,6 +382,81 @@ export default function Dashboard({
     if (input) input.click()
   }
 
+  const handleUpdateProfile = async (e) => {
+    e.preventDefault()
+    setProfileUpdateStatus('')
+    setProfileUpdateError('')
+    setUpdatingProfile(true)
+
+    if (dbConfigStatus === 'sandbox' || dbConfigStatus === 'missing_tables') {
+      // Sandbox mode: update local memory state only
+      if (newPassword) {
+        if (newPassword.length < 6 || newPassword.length > 30) {
+          setProfileUpdateError('Password must be between 6 and 30 characters.')
+          setUpdatingProfile(false)
+          return
+        }
+        if (!/(?=.*[A-Za-z])(?=.*\d)/.test(newPassword)) {
+          setProfileUpdateError('Password must contain at least one letter and one number.')
+          setUpdatingProfile(false)
+          return
+        }
+        if (newPassword !== confirmPassword) {
+          setProfileUpdateError('Passwords do not match.')
+          setUpdatingProfile(false)
+          return
+        }
+        setNewPassword('')
+        setConfirmPassword('')
+        setProfileUpdateStatus('Password updated locally (Sandbox)!')
+      }
+      setUpdatingProfile(false)
+      setTimeout(() => setProfileUpdateStatus(''), 4000)
+      return
+    }
+
+    // Database mode: Update password
+    if (newPassword) {
+      if (newPassword.length < 6 || newPassword.length > 30) {
+        setProfileUpdateError('Password must be between 6 and 30 characters.')
+        setUpdatingProfile(false)
+        return
+      }
+      if (!/(?=.*[A-Za-z])(?=.*\d)/.test(newPassword)) {
+        setProfileUpdateError('Password must contain at least one letter and one number.')
+        setUpdatingProfile(false)
+        return
+      }
+      if (newPassword !== confirmPassword) {
+        setProfileUpdateError('Passwords do not match.')
+        setUpdatingProfile(false)
+        return
+      }
+
+      try {
+        const { error: pwdErr } = await supabase.auth.updateUser({
+          password: newPassword
+        })
+
+        if (pwdErr) throw pwdErr
+
+        setNewPassword('')
+        setConfirmPassword('')
+        setProfileUpdateStatus('Password successfully updated!')
+      } catch (err) {
+        console.error('Failed to update password:', err)
+        setProfileUpdateError(err.message || 'Failed to update password.')
+        setUpdatingProfile(false)
+        return
+      }
+    }
+
+    setUpdatingProfile(false)
+    setTimeout(() => {
+      setProfileUpdateStatus('')
+    }, 4000)
+  }
+
   // Collapsible breakdowns state
   const [expandedBreakdowns, setExpandedBreakdowns] = useState({})
   
@@ -384,9 +467,57 @@ export default function Dashboard({
     }))
   }
 
-  // Sync state values with global config props
+  const runHeuristicFallback = (text) => {
+    const localResult = analyzeJournalEntry(text, appSettings)
+    return {
+      calculated_kg: localResult.calculated_kg,
+      efficiency_score: localResult.efficiency_score,
+      narrative: `Heuristic parsing: Categorized under "${localResult.category}". Choose a personal LLM API provider in AI settings to unlock complete scientific narratives and cause metrics.`,
+      clarifying_questions: [],
+      causes: [
+        {
+          activity: 'Logged activity',
+          label: localResult.category.toUpperCase(),
+          kg: localResult.calculated_kg,
+          impact: localResult.calculated_kg > 10 ? 'high' : localResult.calculated_kg > 4 ? 'medium' : 'low'
+        }
+      ],
+      suggestions: localResult.suggestions.map(s => ({
+        title: s,
+        detail: 'Heuristic tip based on keyword matching.',
+        steps: ['Start small with local habit changes.']
+      })),
+      motivation: 'Every action logged is a step towards eco-synchronization. Maintain your habit!'
+    }
+  }
+
+  // Sync state values with global config props or local storage for standard users
   useEffect(() => {
-    if (appSettings) {
+    const isAdminUser = adminConfig && user?.isAdmin;
+    
+    if (!isAdminUser) {
+      // Load from localStorage for personal configs
+      const personalProvider = localStorage.getItem('aether_personal_provider') || 'openrouter';
+      const personalKey = localStorage.getItem(`aether_personal_key_${personalProvider}`) || '';
+      const personalBaseUrl = localStorage.getItem(`aether_personal_base_url_${personalProvider}`) || '';
+      const personalModel = localStorage.getItem(`aether_personal_model_${personalProvider}`) || 'meta-llama/llama-3.3-70b-instruct';
+      let personalPrompt = localStorage.getItem(`aether_personal_prompt_${personalProvider}`) || '';
+      if (!personalPrompt || personalPrompt.trim() === '' || !personalPrompt.includes('clarifying_questions')) {
+        personalPrompt = defaultSettings.llm_system_prompt;
+      }
+
+      setLlmProvider(personalProvider);
+      setLlmApiKey(personalKey);
+      setLlmBaseUrl(personalBaseUrl);
+      setLlmModel(personalModel);
+      setLlmSystemPrompt(personalPrompt);
+
+      const staticList = providerModels[personalProvider] || [];
+      const hasModel = staticList.some(m => m.value === personalModel);
+      const list = hasModel ? staticList : [{ value: personalModel, label: personalModel }, ...staticList];
+      setDynamicModels(list);
+    } else if (appSettings) {
+      // Admin: Load from global settings in Supabase
       let provider = appSettings.llm_provider || 'openrouter'
       if (provider === 'local') provider = 'openrouter'
       setLlmProvider(provider)
@@ -407,7 +538,7 @@ export default function Dashboard({
       const list = hasModel ? staticList : [{ value: model, label: model }, ...staticList]
       setDynamicModels(list)
     }
-  }, [appSettings])
+  }, [appSettings, user?.isAdmin, adminConfig])
 
   // Fetch models dynamically when admin panel opens or provider changes
   useEffect(() => {
@@ -421,6 +552,41 @@ export default function Dashboard({
     setSavingSettings(true)
     setSettingsStatus('')
 
+    const isAdminUser = adminConfig && user?.isAdmin;
+
+    if (!isAdminUser) {
+      // Save locally for personal use
+      try {
+        localStorage.setItem('aether_personal_provider', llmProvider)
+        localStorage.setItem(`aether_personal_key_${llmProvider}`, llmApiKey)
+        localStorage.setItem(`aether_personal_base_url_${llmProvider}`, llmBaseUrl)
+        localStorage.setItem(`aether_personal_model_${llmProvider}`, llmModel)
+        localStorage.setItem(`aether_personal_prompt_${llmProvider}`, llmSystemPrompt)
+
+        // Propagate changes to the local settings state for this session
+        const updated = {
+          id: 'global',
+          llm_provider: llmProvider,
+          llm_api_key: llmApiKey,
+          llm_base_url: llmBaseUrl,
+          llm_model: llmModel,
+          llm_system_prompt: llmSystemPrompt,
+          updated_at: new Date().toISOString()
+        }
+        if (onSettingsApplied) onSettingsApplied(updated)
+
+        setSettingsStatus('✓ Personal AI Settings saved locally!')
+      } catch (err) {
+        console.error('Failed to save settings locally:', err)
+        setSettingsStatus('✗ Failed to save settings locally')
+      } finally {
+        setSavingSettings(false)
+        setTimeout(() => setSettingsStatus(''), 4000)
+      }
+      return
+    }
+
+    // Admin: Save globally to Supabase app_settings
     const updated = {
       id: 'global',
       llm_provider: llmProvider,
@@ -431,10 +597,8 @@ export default function Dashboard({
       updated_at: new Date().toISOString()
     }
 
-    // Apply to App state immediately (optimistic update — UI stays responsive)
     if (onSettingsApplied) onSettingsApplied(updated)
 
-    // Save to Supabase — single source of truth, no local fallback
     try {
       const { error } = await supabase
         .from('app_settings')
@@ -1160,19 +1324,24 @@ alter table journal_logs alter column category drop not null;`}
     setCurrentStepIndex(0)
     await new Promise(resolve => setTimeout(resolve, 600 + Math.random() * 200))
 
-    // Step 2: Live LLM Analysis
+    // Step 2: Live LLM Analysis / Local Heuristic Parser Fallback
     setCurrentStepIndex(1)
     
     let calculation
-    try {
-      // appSettings is always fresh from Supabase (loaded on boot) — use it directly
-      calculation = await analyzeJournalEntryAsync(journalText, appSettings)
-    } catch (err) {
-      console.error('Linguistic calculation exception:', err)
-      setSubmitError(err.message || 'LLM connection error. Sync aborted.')
-      setSubmitting(false)
-      setCurrentStepIndex(-1)
-      return
+    const activeProvider = appSettings?.llm_provider || 'openrouter'
+    const personalKey = typeof window !== 'undefined' ? localStorage.getItem(`aether_personal_key_${activeProvider}`) : null
+    const hasKey = appSettings?.llm_api_key || (activeProvider === 'ollama') || personalKey
+
+    if (hasKey) {
+      try {
+        calculation = await analyzeJournalEntryAsync(journalText, appSettings)
+      } catch (err) {
+        console.error('Linguistic calculation exception, trying heuristic fallback:', err)
+        calculation = runHeuristicFallback(journalText)
+      }
+    } else {
+      console.log('No global or personal API key configured. Falling back to local heuristic rules.')
+      calculation = runHeuristicFallback(journalText)
     }
 
     const hasQuestions = calculation.clarifying_questions && calculation.clarifying_questions.length > 0;
@@ -2042,6 +2211,90 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
                     </div>
                   </div>
                 )}
+
+                <div className="border-t border-slate-100 my-1" />
+
+                {/* Account Settings Toggle */}
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingProfile(!editingProfile)
+                      setProfileUpdateError('')
+                      setProfileUpdateStatus('')
+                    }}
+                    className="w-full p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-mono font-bold text-[9px] tracking-wider flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                  >
+                    <Settings className="w-3.5 h-3.5 text-slate-500" />
+                    {editingProfile ? 'CLOSE ACCOUNT SETTINGS' : 'ACCOUNT SETTINGS'}
+                  </button>
+
+                  <AnimatePresence>
+                    {editingProfile && (
+                      <motion.form
+                        onSubmit={handleUpdateProfile}
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="space-y-3 pt-2 overflow-hidden border-t border-slate-100 mt-2"
+                      >
+                        {profileUpdateError && (
+                          <div className="p-2 bg-rose-50 border border-rose-200 rounded-xl text-[10px] text-rose-700 font-mono">
+                            ⚠ {profileUpdateError}
+                          </div>
+                        )}
+                        {profileUpdateStatus && (
+                          <div className="p-2 bg-emerald-50 border border-emerald-200 rounded-xl text-[10px] text-emerald-700 font-semibold">
+                            ✓ {profileUpdateStatus}
+                          </div>
+                        )}
+
+                        <div className="space-y-1">
+                          <label className="block text-[8px] font-bold text-slate-500 uppercase tracking-wider font-mono">
+                            New Password
+                          </label>
+                          <input
+                            type="password"
+                            placeholder="Min 6 chars, letter + number"
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            maxLength={30}
+                            className="w-full p-2 border border-slate-200 rounded-lg text-xs bg-slate-50 focus:outline-none focus:border-green-500"
+                          />
+                        </div>
+
+                        {newPassword && (
+                          <div className="space-y-1">
+                            <label className="block text-[8px] font-bold text-slate-500 uppercase tracking-wider font-mono">
+                              Confirm Password
+                            </label>
+                            <input
+                              type="password"
+                              placeholder="Confirm new password"
+                              value={confirmPassword}
+                              onChange={(e) => setConfirmPassword(e.target.value)}
+                              maxLength={30}
+                              className="w-full p-2 border border-slate-200 rounded-lg text-xs bg-slate-50 focus:outline-none focus:border-green-500"
+                            />
+                          </div>
+                        )}
+
+                        <button
+                          type="submit"
+                          disabled={updatingProfile || !newPassword}
+                          className="w-full p-2.5 rounded-xl bg-green-600 hover:bg-green-500 text-white font-mono font-bold text-[9px] tracking-wider flex items-center justify-center gap-1 cursor-pointer disabled:opacity-40"
+                        >
+                          {updatingProfile ? (
+                            <RefreshCw className="w-3 h-3 animate-spin" />
+                          ) : (
+                            'SAVE CHANGES'
+                          )}
+                        </button>
+                      </motion.form>
+                    )}
+                  </AnimatePresence>
+                </div>
 
                 <div className="border-t border-slate-100 my-1" />
 
@@ -3552,7 +3805,7 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
                   </div>
                   <div>
                     <h2 className="text-base font-bold text-white tracking-tight">AI Engine Configuration</h2>
-                    <p className="text-[11px] text-emerald-400/80 font-mono mt-0.5">Connect your LLM source Â· Set API key Â· Pick model</p>
+                    <p className="text-[11px] text-emerald-400/80 font-mono mt-0.5">Connect your LLM source · Set API key · Pick model</p>
                   </div>
                 </div>
                 <button

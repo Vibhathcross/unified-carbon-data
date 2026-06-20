@@ -187,9 +187,15 @@ export function analyzeJournalEntry(text, settings = defaultSettings) {
 export async function analyzeJournalEntryAsync(text, settings = defaultSettings) {
   const conf = { ...defaultSettings, ...settings };
 
+  // Check for personal key in localStorage if global settings don't have it
+  let apiKey = conf.llm_api_key;
+  if (!apiKey && typeof window !== 'undefined') {
+    apiKey = localStorage.getItem(`aether_personal_key_${conf.llm_provider}`) || '';
+  }
+
   // Ollama does not require an API key to run locally, others do
   const needsApiKey = ['groq', 'openai', 'gemini', 'openrouter', 'claude'].includes(conf.llm_provider);
-  if (needsApiKey && !conf.llm_api_key) {
+  if (needsApiKey && !apiKey) {
     throw new Error(`API Key for ${conf.llm_provider.toUpperCase()} is not configured. Please open Settings and enter your API Key.`);
   }
 
@@ -211,7 +217,7 @@ export async function analyzeJournalEntryAsync(text, settings = defaultSettings)
 
     if (conf.llm_provider === 'groq') {
       url = conf.llm_base_url || (isDev ? '/api-proxy/groq/openai/v1/chat/completions' : 'https://api.groq.com/openai/v1/chat/completions');
-      headers['Authorization'] = `Bearer ${conf.llm_api_key}`;
+      headers['Authorization'] = `Bearer ${apiKey}`;
       bodyData = {
         model: conf.llm_model || 'llama-3.1-8b-instant',
         messages: [
@@ -223,7 +229,7 @@ export async function analyzeJournalEntryAsync(text, settings = defaultSettings)
       };
     } else if (conf.llm_provider === 'openai') {
       url = conf.llm_base_url || (isDev ? '/api-proxy/openai/v1/chat/completions' : 'https://api.openai.com/v1/chat/completions');
-      headers['Authorization'] = `Bearer ${conf.llm_api_key}`;
+      headers['Authorization'] = `Bearer ${apiKey}`;
       bodyData = {
         model: conf.llm_model || 'gpt-4o-mini',
         messages: [
@@ -235,7 +241,7 @@ export async function analyzeJournalEntryAsync(text, settings = defaultSettings)
       };
     } else if (conf.llm_provider === 'openrouter') {
       url = conf.llm_base_url || 'https://openrouter.ai/api/v1/chat/completions';
-      headers['Authorization'] = `Bearer ${conf.llm_api_key}`;
+      headers['Authorization'] = `Bearer ${apiKey}`;
       headers['HTTP-Referer'] = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173';
       headers['X-Title'] = 'Aether Carbon Sync Matrix';
       bodyData = {
@@ -249,7 +255,7 @@ export async function analyzeJournalEntryAsync(text, settings = defaultSettings)
       };
     } else if (conf.llm_provider === 'claude') {
       url = conf.llm_base_url || (isDev ? '/api-proxy/anthropic/v1/messages' : 'https://api.anthropic.com/v1/messages');
-      headers['x-api-key'] = conf.llm_api_key;
+      headers['x-api-key'] = apiKey;
       headers['anthropic-version'] = '2023-06-01';
       headers['dangerouslyAllowBrowser'] = 'true';
       bodyData = {
@@ -263,7 +269,7 @@ export async function analyzeJournalEntryAsync(text, settings = defaultSettings)
       };
     } else if (conf.llm_provider === 'gemini') {
       const geminiBase = conf.llm_base_url || 'https://generativelanguage.googleapis.com/v1beta/models';
-      url = `${geminiBase}/${conf.llm_model || 'gemini-1.5-flash'}:generateContent?key=${conf.llm_api_key}`;
+      url = `${geminiBase}/${conf.llm_model || 'gemini-1.5-flash'}:generateContent?key=${apiKey}`;
       bodyData = {
         contents: [
           {

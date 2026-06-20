@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react'
 import { supabase, isPlaceholder } from '../supabaseClient'
-import { motion } from 'framer-motion'
-import { Leaf, Lock, Sparkles, ArrowRight, RefreshCw, AlertCircle, Eye, EyeOff, Shield, ShieldCheck, FolderOpen } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Leaf, Lock, Sparkles, ArrowRight, RefreshCw, AlertCircle, Eye, EyeOff, Shield, ShieldCheck, FolderOpen, Info } from 'lucide-react'
 
 // Random Eco-ID Generator lists
 const prefixes = ['eco', 'terra', 'sage', 'green', 'zero', 'bio', 'solar', 'wind', 'earth', 'pure', 'flora', 'sol']
@@ -19,6 +19,7 @@ export default function AuthScreen({ onAuthSuccess, onAdminLogin, onAdminConfigF
   const [adminError, setAdminError] = useState('')
   const [adminSuccess, setAdminSuccess] = useState(false)
   const fileInputRef = useRef(null)
+  const [showAdminDropdown, setShowAdminDropdown] = useState(false)
 
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0]
@@ -46,12 +47,9 @@ export default function AuthScreen({ onAuthSuccess, onAdminLogin, onAdminConfigF
     setError('')
   }
 
-  // Map Eco-ID to virtual email, or use raw email directly if it contains an '@'
+  // Map Eco-ID to virtual email
   const getVirtualEmail = (id) => {
     const trimmed = id.trim()
-    if (trimmed.includes('@')) {
-      return trimmed.toLowerCase()
-    }
     const cleanId = trimmed.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9_-]/g, '')
     return `${cleanId}@gmail.com`
   }
@@ -88,8 +86,26 @@ export default function AuthScreen({ onAuthSuccess, onAdminLogin, onAdminConfigF
       return
     }
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters')
+    if (ecoId.length > 50) {
+      setError('Eco-ID must be at most 50 characters')
+      setLoading(false)
+      return
+    }
+
+    if (ecoId.includes('@')) {
+      setError('Eco-ID must be a name, not an email address. Do not include "@".')
+      setLoading(false)
+      return
+    }
+
+    if (password.length < 6 || password.length > 30) {
+      setError('Password must be between 6 and 30 characters long')
+      setLoading(false)
+      return
+    }
+
+    if (!/(?=.*[A-Za-z])(?=.*\d)/.test(password)) {
+      setError('Password must contain at least one letter and one number')
       setLoading(false)
       return
     }
@@ -133,7 +149,7 @@ export default function AuthScreen({ onAuthSuccess, onAdminLogin, onAdminConfigF
               id: user.id,
               display_name: ecoId.trim(),
               eco_id: ecoId.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9_-]/g, ''),
-              badge_status: 'Seedling',
+              badge_status: 'Carbon Beginner',
             },
           ])
 
@@ -205,82 +221,108 @@ export default function AuthScreen({ onAuthSuccess, onAdminLogin, onAdminConfigF
       {/* Futuristic Scanline Effect */}
       <div className="absolute inset-0 scanline opacity-[0.015] pointer-events-none" />
 
-      <div className="w-full max-w-md flex flex-col gap-3 relative z-10">
-
-        {/* ── Admin Device Login Banner (OUTSIDE + ABOVE the card) ── */}
-        <motion.div
-          initial={{ opacity: 0, y: -12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: 'easeOut' }}
-          className="rounded-2xl border border-slate-200 bg-white/80 backdrop-blur-md shadow-sm overflow-hidden"
+      {/* Floating Admin Access circular icon on the top right */}
+      <div className="fixed top-6 right-6 z-50 flex flex-col items-end">
+        <button
+          type="button"
+          onClick={() => setShowAdminDropdown(!showAdminDropdown)}
+          className="w-10 h-10 rounded-full bg-white/80 backdrop-blur-md border border-slate-200/80 shadow-md flex items-center justify-center hover:bg-slate-50 active:scale-95 transition-all cursor-pointer relative group"
+          title="Admin Device Access"
         >
-          <div className="flex items-center justify-between px-4 py-3">
-            <div className="flex items-center gap-2.5">
-              <div className={`p-1.5 rounded-lg transition-colors duration-300 ${adminSuccess ? 'bg-green-100' : 'bg-slate-100'}`}>
-                {adminSuccess
-                  ? <ShieldCheck className="w-4 h-4 text-green-600" />
-                  : <Shield className="w-4 h-4 text-slate-500" />
-                }
-              </div>
-              <div>
-                <p className="text-[11px] font-bold text-slate-700 font-mono tracking-wide leading-none">ADMIN DEVICE ACCESS</p>
-                <p className="text-[9px] text-slate-400 font-mono mt-0.5">Verified via admin_config.json</p>
-              </div>
-            </div>
-            <button
-              type="button"
-              id="admin-login-btn"
-              disabled={adminLoading || adminSuccess}
-              onClick={handleAdminLoginClick}
-              className={
-                `flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold font-mono transition-all duration-200 ` +
-                (adminSuccess
-                  ? 'bg-green-100 text-green-700 border border-green-200 cursor-not-allowed'
-                  : adminLoading
-                    ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
-                    : 'bg-slate-900 text-white hover:bg-slate-700 active:scale-95 shadow-sm cursor-pointer'
-                )
-              }
-            >
-              {adminLoading
-                ? <RefreshCw className="w-3 h-3 animate-spin" />
-                : adminSuccess
-                  ? <ShieldCheck className="w-3 h-3" />
-                  : <Shield className="w-3 h-3" />
-              }
-              {adminSuccess ? 'Logged in!' : adminLoading ? 'Verifying...' : 'Admin Login'}
-            </button>
-          </div>
-          {adminError && (
-            <div className="px-4 pb-3 flex flex-col gap-2">
-              <p className="text-[10px] text-red-600 font-mono bg-red-50 border border-red-100 rounded-lg px-3 py-2">
-                ⚠ {adminError}
-              </p>
-              {adminError.includes('not found') && (
-                <>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".json,application/json"
-                    className="hidden"
-                    onChange={handleFileChange}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-bold font-mono bg-slate-800 text-green-400 hover:bg-slate-700 border border-slate-600 transition-all active:scale-95 cursor-pointer"
-                  >
-                    <FolderOpen className="w-3.5 h-3.5" />
-                    Load Config File from this Device
-                  </button>
-                  <p className="text-[9px] text-slate-400 font-mono leading-relaxed">
-                    📁 Select your local <span className="text-slate-600 font-bold">admin_config.json</span>. Once loaded it is saved in this browser permanently — works on any URL.
-                  </p>
-                </>
-              )}
-            </div>
+          {adminSuccess ? (
+            <ShieldCheck className="w-5 h-5 text-green-600" />
+          ) : (
+            <Shield className="w-5 h-5 text-slate-500 hover:text-slate-700" />
           )}
-        </motion.div>
+          {adminSuccess && (
+            <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border border-white animate-pulse" />
+          )}
+        </button>
+
+        <AnimatePresence>
+          {showAdminDropdown && (
+            <motion.div
+              initial={{ opacity: 0, y: -10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -10, scale: 0.95 }}
+              transition={{ duration: 0.2 }}
+              className="mt-2 w-72 rounded-2xl border border-slate-200/80 bg-white/95 backdrop-blur-md shadow-xl overflow-hidden p-4 text-slate-800 flex flex-col gap-3 font-sans"
+            >
+              <div className="flex items-center gap-2.5 pb-2 border-b border-slate-100">
+                <div className={`p-1.5 rounded-lg ${adminSuccess ? 'bg-green-500/10' : 'bg-slate-100'}`}>
+                  {adminSuccess ? (
+                    <ShieldCheck className="w-4 h-4 text-green-600" />
+                  ) : (
+                    <Shield className="w-4 h-4 text-slate-500" />
+                  )}
+                </div>
+                <div>
+                  <p className="text-[11px] font-bold text-slate-700 font-mono tracking-wide leading-none">ADMIN DEVICE ACCESS</p>
+                  <p className="text-[9px] text-slate-400 font-mono mt-0.5">
+                    {adminSuccess ? 'Verified via config file' : 'Verify via admin_config.json'}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                disabled={adminLoading || adminSuccess}
+                onClick={handleAdminLoginClick}
+                className={
+                  `flex items-center justify-center gap-1.5 w-full py-2 rounded-xl text-xs font-bold font-mono transition-all duration-200 ` +
+                  (adminSuccess
+                    ? 'bg-green-500/10 text-green-700 border border-green-200/50 cursor-not-allowed'
+                    : adminLoading
+                      ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
+                      : 'bg-slate-900 text-white hover:bg-slate-800 active:scale-95 shadow-sm cursor-pointer'
+                  )
+                }
+              >
+                {adminLoading ? (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                ) : adminSuccess ? (
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                ) : (
+                  <Shield className="w-3.5 h-3.5" />
+                )}
+                {adminSuccess ? 'Admin Access Active' : adminLoading ? 'Verifying...' : 'Admin Login'}
+              </button>
+
+              {adminError && (
+                <div className="flex flex-col gap-2 mt-1">
+                  <p className="text-[10px] text-rose-600 font-mono bg-rose-50 border border-rose-100 rounded-xl px-3 py-2 leading-normal">
+                    ⚠ {adminError}
+                  </p>
+                  {adminError.includes('not found') && (
+                    <>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".json,application/json"
+                        className="hidden"
+                        onChange={handleFileChange}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="flex items-center justify-center gap-1.5 w-full py-2 rounded-xl text-[10px] font-bold font-mono bg-slate-800 text-green-400 hover:bg-slate-700 border border-slate-600 transition-all active:scale-95 cursor-pointer"
+                      >
+                        <FolderOpen className="w-3.5 h-3.5" />
+                        Load Config File
+                      </button>
+                      <p className="text-[9px] text-slate-400 font-mono leading-normal text-center">
+                        Select your local admin_config.json file to authenticate.
+                      </p>
+                    </>
+                  )}
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      <div className="w-full max-w-md flex flex-col gap-3 relative z-10">
 
         {/* ── Main Auth Card ── */}
         <motion.div
@@ -336,9 +378,18 @@ export default function AuthScreen({ onAuthSuccess, onAdminLogin, onAdminConfigF
             <form onSubmit={handleAuth} className="space-y-5">
               <div>
                 <div className="flex justify-between items-center mb-2">
-                  <label className="block text-xs font-bold text-green-800 uppercase tracking-wider font-mono">
-                    Eco-ID
-                  </label>
+                  <div className="flex items-center gap-1.5">
+                    <label className="block text-xs font-bold text-green-800 uppercase tracking-wider font-mono">
+                      Eco-ID
+                    </label>
+                    <div className="relative group">
+                      <Info className="w-3.5 h-3.5 text-slate-400 hover:text-slate-600 cursor-pointer" />
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-slate-900 text-white text-[10px] rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 group-focus:opacity-100 transition-opacity duration-200 z-30 font-sans shadow-md text-center leading-normal">
+                        This name will be used in the certificate and cannot be edited later
+                        <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-900" />
+                      </div>
+                    </div>
+                  </div>
                   {isSignUp && (
                     <button
                       type="button"
@@ -359,16 +410,13 @@ export default function AuthScreen({ onAuthSuccess, onAdminLogin, onAdminConfigF
                     placeholder="e.g. vibhath"
                     value={ecoId}
                     onChange={(e) => setEcoId(e.target.value)}
+                    maxLength={50}
                     className="w-full pl-11 pr-4 py-3 glass-input text-sm"
                   />
                 </div>
                 {isSignUp ? (
                   <p className="text-[10px] text-green-700/80 font-mono mt-2 leading-normal">
                     * Your Eco-ID is your cryptographic display name printed on all carbon certificates, ledger logs, and sync rank badges.
-                  </p>
-                ) : ecoId.trim().length >= 4 ? (
-                  <p className="text-[10px] text-slate-400 font-mono mt-1.5 leading-normal">
-                    🔑 Login key: <span className="text-green-700 font-bold">{getVirtualEmail(ecoId)}</span>
                   </p>
                 ) : null}
               </div>
@@ -386,6 +434,7 @@ export default function AuthScreen({ onAuthSuccess, onAdminLogin, onAdminConfigF
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    maxLength={30}
                     className="w-full pl-11 pr-12 py-3 glass-input text-sm"
                   />
                   <button
