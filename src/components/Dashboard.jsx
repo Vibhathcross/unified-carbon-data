@@ -306,6 +306,8 @@ export default function Dashboard({
   const [showAnalyticsTooltip, setShowAnalyticsTooltip] = useState(false)
   const [showLogTooltip, setShowLogTooltip] = useState(false)
   const [showGuideModal, setShowGuideModal] = useState(false)
+  const constraintsRef = useRef(null)
+  const guideDraggingRef = useRef(false)
 
   const [savingSettings, setSavingSettings] = useState(false)
   const [settingsStatus, setSettingsStatus] = useState('')
@@ -1882,16 +1884,29 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
 
   return (
     <div 
+      ref={constraintsRef}
       className="min-h-screen relative flex flex-col pb-20 md:pb-6 overflow-x-hidden"
     >
       {/* Floating Guide Button */}
-      <button
-        onClick={() => setShowGuideModal(true)}
-        className="fixed top-24 left-6 z-[80] w-12 h-12 rounded-full glass-panel-interactive flex items-center justify-center border border-emerald-500/30 text-emerald-700 hover:text-emerald-800 shadow-lg cursor-pointer transition-all hover:scale-105 active:scale-95"
-        title="Open User Guide"
+      <motion.button
+        drag
+        dragConstraints={constraintsRef}
+        dragElastic={0.15}
+        dragMomentum={false}
+        onDragStart={() => { guideDraggingRef.current = true }}
+        onDragEnd={() => {
+          setTimeout(() => { guideDraggingRef.current = false }, 80)
+        }}
+        onClick={() => {
+          if (!guideDraggingRef.current) {
+            setShowGuideModal(true)
+          }
+        }}
+        className="fixed top-24 left-6 z-[80] w-12 h-12 rounded-full glass-panel-interactive flex items-center justify-center border border-emerald-500/30 text-emerald-700 hover:text-emerald-800 shadow-lg cursor-grab active:cursor-grabbing select-none touch-none"
+        title="Open User Guide (Drag to move)"
       >
-        <BookOpen className="w-5 h-5 animate-pulse" />
-      </button>
+        <BookOpen className="w-5 h-5 animate-pulse pointer-events-none select-none" />
+      </motion.button>
 
       {/* Complete User Guide Modal */}
       <AnimatePresence>
