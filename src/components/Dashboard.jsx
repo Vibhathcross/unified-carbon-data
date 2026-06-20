@@ -2546,9 +2546,12 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
                     </div>
                     <div>
                       <span className="font-bold text-white block mb-0.5">Examples:</span>
-                      <p className="leading-normal italic text-slate-400">
+                      <p className="leading-normal italic text-slate-400 mb-2">
                         "I commuted 10 km by train, ate a vegetarian curry, and ran a quick laundry load."
                       </p>
+                    </div>
+                    <div className="p-1.5 bg-emerald-900/40 border border-emerald-500/10 rounded-lg text-emerald-300 text-[9.5px] leading-normal font-sans">
+                      💡 <strong>Pro Tip:</strong> Logging once a day in the evening with a detailed journal covering all your activities for the day is the most efficient and accurate way to keep your ledger synced.
                     </div>
                   </div>
                 </div>
@@ -2734,7 +2737,7 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -5 }}
                     transition={{ duration: 0.3 }}
-                    className="max-w-xs text-center text-[10px] text-green-700/80 font-mono italic px-4 leading-normal"
+                    className="mt-8 max-w-xs text-center text-[10px] text-green-700/80 font-mono italic px-4 leading-normal"
                   >
                     💡 did you know? {carbonFacts[currentFactIndex]}
                   </motion.div>
@@ -3622,9 +3625,12 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
                       </div>
                       <div>
                         <span className="font-bold text-white block mb-0.5">Examples:</span>
-                        <p className="leading-normal italic text-slate-400">
+                        <p className="leading-normal italic text-slate-400 mb-2">
                           "I commuted 10 km by train, ate a vegetarian curry, and ran a quick laundry load."
                         </p>
+                      </div>
+                      <div className="p-1.5 bg-emerald-900/40 border border-emerald-500/10 rounded-lg text-emerald-300 text-[9.5px] leading-normal font-sans">
+                        💡 <strong>Pro Tip:</strong> Logging once a day in the evening with a detailed journal covering all your activities for the day is the most efficient and accurate way to keep your ledger synced.
                       </div>
                     </div>
                   </div>
@@ -3794,7 +3800,7 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -5 }}
                     transition={{ duration: 0.3 }}
-                    className="max-w-xs text-center text-[10px] text-green-700/80 font-mono italic px-4 leading-normal"
+                    className="mt-8 max-w-xs text-center text-[10px] text-green-700/80 font-mono italic px-4 leading-normal"
                   >
                     💡 did you know? {carbonFacts[currentFactIndex]}
                   </motion.div>
