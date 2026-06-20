@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="public/favicon.svg" width="120" alt="Aether Carbon Logo" />
+</p>
+
 # 🌌 Aether Carbon: Unified Sync Matrix
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-emerald.svg?style=flat-square)](https://opensource.org/licenses/MIT)
