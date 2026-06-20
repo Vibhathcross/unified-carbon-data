@@ -2523,7 +2523,7 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
                 </button>
                 
                 {/* Tooltip Content */}
-                <div className={`fixed md:absolute left-1/2 -translate-x-1/2 md:left-0 md:translate-x-0 bottom-16 md:bottom-6 w-[calc(100vw-2rem)] max-w-[17rem] md:max-w-80 max-h-[50vh] overflow-y-auto bg-emerald-950/95 backdrop-blur border border-emerald-500/20 text-emerald-100 rounded-2xl p-3 md:p-4 shadow-2xl transition-all duration-300 z-[100] pointer-events-auto text-xs leading-relaxed text-left overscroll-contain ${
+                <div className={`fixed md:absolute left-1/2 -translate-x-1/2 md:left-0 md:translate-x-0 bottom-16 md:top-full md:mt-2 md:bottom-auto w-[calc(100vw-2rem)] max-w-[17rem] md:max-w-80 max-h-[50vh] overflow-y-auto bg-emerald-950/95 backdrop-blur border border-emerald-500/20 text-emerald-100 rounded-2xl p-3 md:p-4 shadow-2xl transition-all duration-300 z-[100] pointer-events-auto text-xs leading-relaxed text-left overscroll-contain ${
                   showLogTooltip 
                     ? 'opacity-100 visible' 
                     : 'opacity-0 invisible'
@@ -3602,7 +3602,7 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
                   </button>
                   
                   {/* Tooltip Content */}
-                  <div className={`fixed md:absolute left-1/2 -translate-x-1/2 md:left-0 md:translate-x-0 bottom-16 md:bottom-6 w-[calc(100vw-2rem)] max-w-[17rem] md:max-w-80 max-h-[50vh] overflow-y-auto bg-emerald-950/95 backdrop-blur border border-emerald-500/20 text-emerald-100 rounded-2xl p-3 md:p-4 shadow-2xl transition-all duration-300 z-[100] pointer-events-auto text-xs leading-relaxed text-left overscroll-contain ${
+                  <div className={`fixed md:absolute left-1/2 -translate-x-1/2 md:left-0 md:translate-x-0 bottom-16 md:top-full md:mt-2 md:bottom-auto w-[calc(100vw-2rem)] max-w-[17rem] md:max-w-80 max-h-[50vh] overflow-y-auto bg-emerald-950/95 backdrop-blur border border-emerald-500/20 text-emerald-100 rounded-2xl p-3 md:p-4 shadow-2xl transition-all duration-300 z-[100] pointer-events-auto text-xs leading-relaxed text-left overscroll-contain ${
                     showLogTooltip 
                       ? 'opacity-100 visible' 
                       : 'opacity-0 invisible'
