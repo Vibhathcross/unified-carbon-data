@@ -2502,7 +2502,9 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
           </div>
 
           {/* Form Journal Console */}
-          <div className="glass-panel rounded-3xl p-5 border border-green-100/50 relative">
+          <div className="rounded-3xl p-5 relative">
+            {/* Background layer with glassmorphism to prevent backdrop-filter clipping bug on child tooltips */}
+            <div className="absolute inset-0 glass-panel rounded-3xl border border-green-100/50 -z-10 pointer-events-none" />
             <h3 className="text-xs font-bold text-green-800 uppercase tracking-wider mb-3 font-mono flex items-center gap-1.5 relative group">
               <Database className="w-4 h-4 text-green-600" />
               <span>RECORD JOURNAL FOOTPRINT</span>
