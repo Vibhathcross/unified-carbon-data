@@ -36,8 +36,7 @@ The interface is built to deliver a premium, high-fidelity user experience:
 ```mermaid
 graph TD
     A[User Daily Log Input] --> B(carbonAnalyzer.js Engine)
-    B -->|Async Mode| C{API Provider Router}
-    B -->|Local Fallback Mode| D[Local Keyword Regex Matcher]
+    B -->|Checks Keys| C{API Provider Router}
     
     C -->|OpenRouter| E[OpenRouter Gateway]
     C -->|Groq| F[Groq API via Dev Proxy]
@@ -45,9 +44,9 @@ graph TD
     C -->|Gemini| H[Google Gemini API]
     C -->|Claude| I[Anthropic Claude API via Dev Proxy]
     C -->|Ollama| J[Local Ollama Server]
+    C -->|No Key Configured| K[Show LLM Not Available Error]
 
-    E & F & G & H & I & J & D --> K[Standardized JSON Payload]
-    K --> L[Vite Anti-CORS Dev Proxies]
+    E & F & G & H & I & J --> L[Standardized JSON Payload]
     L --> M[Supabase Backend]
     M -->|Profiles Table| N[User Ranks & Custom Eco-IDs]
     M -->|Journal Logs Table| O[Log History Ledger]
@@ -76,7 +75,6 @@ graph TD
 *   **Eco-ID Validation**: Accepts custom display names up to 50 characters max. Inputs containing `@` characters or matching email formats are blocked to enforce a name-only cryptographic identity.
 *   **Registration Tooltip**: Features a hoverable tooltip next to the Eco-ID label indicating that the name is printed on certificates and cannot be modified later.
 *   **Virtual Email Authentication**: Handles registration by translating usernames to mock email addresses (`username@gmail.com`) for password authentication, bypassing standard verification requirements.
-*   **Sandbox Fallback Mode**: Works out-of-the-box using local storage fallback if Supabase is offline or environment variables are missing.
 
 ### 🧠 2. LLM Carbon Parsing Engine
 *   **Multimodal API Routing**: Configurable to fetch directly from OpenAI, Claude, Groq, OpenRouter, Gemini, or a local Ollama server.
