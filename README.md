@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="public/favicon.svg" width="120" alt="Aether Carbon Logo" />
+  <img src="public/logo.png" width="120" alt="Aether Carbon Logo" />
 </p>
 
 # 🌌 Aether Carbon: Unified Sync Matrix
@@ -177,6 +177,7 @@ unified-carbon-data/
 │   ├── admin_config.json       # Admin credentials template
 │   ├── favicon.svg
 │   ├── icons.svg
+│   ├── logo.png                # Main brand logo
 │   └── leaf_background.mp4     # Ambient background video
 ├── src/
 │   ├── components/
