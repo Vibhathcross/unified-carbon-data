@@ -69,7 +69,8 @@ graph TD
 ## 🚀 Key Features
 
 ### 🔐 1. Custom Eco-ID Authentication
-*   **Eco-ID Generator**: Automatically generates nature-themed usernames (e.g., `terra-guardian-402`) or accepts custom display names, mapping them to virtual cryptographic credentials.
+*   **Eco-ID Validation**: Accepts custom display names up to 50 characters max. Inputs containing `@` characters or matching email formats are blocked to enforce a name-only cryptographic identity.
+*   **Registration Tooltip**: Features a hoverable tooltip next to the Eco-ID label indicating that the name is printed on certificates and cannot be modified later.
 *   **Virtual Email Authentication**: Handles registration by translating usernames to mock email addresses (`username@gmail.com`) for password authentication, bypassing standard verification requirements.
 *   **Sandbox Fallback Mode**: Works out-of-the-box using local storage fallback if Supabase is offline or environment variables are missing.
 
@@ -142,11 +143,13 @@ If the server fails to connect to the configured AI API, or if the API key is no
 
 ## 🛠️ Admin settings & Passcode Security
 
-The application includes an **AI Configuration Panel** that lets admins modify settings globally.
+The application segregates administrative configurations from regular user workflows securely:
 
+*   **Floating Admin Portal**: Access is initiated via a small floating circular shield button in the top-right corner of the login screen, toggling a glassmorphic popover control.
 *   **Credential File Verification**: Admins log in by uploading a local `admin_config.json` containing their credential variables. The file is validated and saved to `localStorage` for session persistence.
 *   **Settings Passcode**: Changes to the global settings require validation of a secure passcode setup in `admin_config.json`.
 *   **Active Key Verification**: Includes a **Test Key** feature that performs a mock call to the chosen provider's ping endpoint and displays a real-time status indicator.
+*   **Account Settings Form**: Regular users can access an expandable settings form in the profile avatar dropdown popover. It only permits changing the account password (satisfying the 6-30 character and letter/number rule). Editing display names/Eco-IDs is disabled to preserve certificate integrity.
 
 ---
 
