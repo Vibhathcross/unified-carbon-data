@@ -138,10 +138,6 @@ When querying the active AI model, the system sends the raw daily log input alon
 }
 ```
 
-### Fallback Mode
-If the server fails to connect to the configured AI API, or if the API key is not yet set, the engine falls back to a **Synchronous Local Regex Matcher** that scans the input text for key terms (e.g. `car`, `flight`, `beef`, `ac`, `recycle`) and applies database multipliers to calculate emissions and suggest basic eco-habits.
-
----
 
 ## 🛠️ Admin settings & Passcode Security
 
