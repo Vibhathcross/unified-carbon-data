@@ -492,6 +492,23 @@ export default function Dashboard({
     }))
   }
 
+  // Collapsible day-group state for the log list (default: all open)
+  const [expandedDays, setExpandedDays] = useState({})
+  const toggleDay = (dateKey) => {
+    setExpandedDays(prev => ({ ...prev, [dateKey]: !prev[dateKey] }))
+  }
+
+  // Group logs by calendar date (YYYY-MM-DD), newest day first
+  const logsByDay = React.useMemo(() => {
+    const map = {}
+    logs.forEach(log => {
+      const dateKey = new Date(log.created_at).toISOString().split('T')[0]
+      if (!map[dateKey]) map[dateKey] = []
+      map[dateKey].push(log)
+    })
+    return Object.entries(map).sort((a, b) => b[0].localeCompare(a[0]))
+  }, [logs])
+
   // Sync state values with global config props or local storage for standard users
   useEffect(() => {
     const isAdminUser = adminConfig && user?.isAdmin;
@@ -2703,19 +2720,21 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
 
                   <button
                     type="submit"
+                    className="cta"
                     disabled={submitting || !journalText.trim()}
-                    className={`py-2.5 px-5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer
-                      ${submitting || !journalText.trim()
-                        ? 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300'
-                        : 'bg-green-600 text-white hover:bg-green-500 active:scale-[0.98]'
-                      }`}
                   >
                     {submitting ? (
-                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <>
+                        <span>Syncing...</span>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" style={{ marginLeft: 8, position: 'relative', color: '#234567' }} />
+                      </>
                     ) : (
                       <>
-                        Sync Log
-                        <Send className="w-3.5 h-3.5" />
+                        <span>Sync Log</span>
+                        <svg className="cta-arrow" width="15px" height="10px" viewBox="0 0 13 10">
+                          <path d="M1,5 L11,5" />
+                          <polyline points="8 1 12 5 8 9" />
+                        </svg>
                       </>
                     )}
                   </button>
@@ -2926,329 +2945,370 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
                 </button>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <AnimatePresence initial={false}>
-                  {logs.map((log) => {
-                    const rawScore = log.efficiency_score !== null && log.efficiency_score !== undefined ? Number(log.efficiency_score) : null
-                    const isNewScore = rawScore !== null ? rawScore <= 10 : false
-                    const scoreOutOf10 = rawScore !== null ? (isNewScore ? rawScore : rawScore / 10) : 0
-                    const scorePercentage = rawScore !== null ? (isNewScore ? rawScore * 10 : rawScore) : 0
-                    const theme = getThemeProps(rawScore)
-
-                    let originalText = log.raw_text || ''
-                    let conversation = { questions: [], answers: [], turn: 0 }
-                    if (log.raw_text && log.raw_text.includes('\n---\n')) {
-                      const parts = log.raw_text.split('\n---\n')
-                      originalText = parts[0]
-                      try {
-                        conversation = JSON.parse(parts[1])
-                      } catch (e) {
-                        console.error('Failed to parse conversation JSON', e)
-                      }
-                    }
+                  {logsByDay.map(([dateKey, dayLogs]) => {
+                    const dayDate = new Date(dateKey + 'T12:00:00')
+                    const today = new Date()
+                    const yesterday = new Date(); yesterday.setDate(today.getDate() - 1)
+                    const isToday = dayDate.toDateString() === today.toDateString()
+                    const isYesterday = dayDate.toDateString() === yesterday.toDateString()
+                    const dayLabel = isToday ? 'Today' : isYesterday ? 'Yesterday' : dayDate.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })
+                    const dayFullDate = dayDate.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
+                    const isOpen = expandedDays[dateKey] === true
+                    const dayTotalKg = dayLogs.reduce((sum, l) => sum + (l.calculated_kg || 0), 0)
 
                     return (
                       <motion.div
-                        key={log.log_id}
-                        initial={{ opacity: 0, y: 15 }}
+                        key={dateKey}
+                        initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, x: -50 }}
-                        className={`glass-panel rounded-3xl border ${theme.border} ${theme.glow} transition-all duration-300 relative overflow-hidden bg-gradient-to-b ${theme.bgGrad}`}
+                        exit={{ opacity: 0, x: -30 }}
+                        className="rounded-2xl overflow-hidden border border-green-100/60 bg-white/30 backdrop-blur-sm shadow-sm"
                       >
-                        <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${
-                          rawScore === null
-                            ? 'from-slate-400/40 to-slate-300/40'
-                            : scorePercentage >= 80
-                              ? 'from-emerald-500/60 to-teal-400/60'
-                              : scorePercentage >= 50
-                                ? 'from-amber-500/60 to-orange-400/60'
-                                : 'from-rose-500/60 to-pink-400/60'
-                        }`} />
-
-                        <div className="p-5 space-y-4">
-                          {/* Top Row: Date & Status & Delete */}
-                          <div className="flex justify-between items-start">
-                            <div className="flex flex-col gap-0.5">
-                              <span className="text-[11px] font-bold text-slate-400 font-mono uppercase tracking-wide">
-                                {new Date(log.created_at).toLocaleDateString(undefined, {
-                                  weekday: 'short',
-                                  month: 'short',
-                                  day: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                })}
-                              </span>
-                              <div className="flex items-center gap-1.5 mt-0.5">
-                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border uppercase tracking-wider font-mono ${theme.badge}`}>
-                                  {theme.label}
-                                </span>
-                              </div>
+                        {/* ── Day Header ── */}
+                        <button
+                          onClick={() => toggleDay(dateKey)}
+                          className="w-full flex items-center justify-between px-4 py-3 hover:bg-green-50/40 transition-colors group"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-sm shadow-green-500/20 shrink-0">
+                              <span className="text-white text-[11px] font-black font-mono">{dayDate.getDate()}</span>
                             </div>
-                            
-                            <button
-                              onClick={() => handleDeleteLog(log.log_id)}
-                              className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
-                              title="Delete log"
+                            <div className="text-left">
+                              <div className="text-[13px] font-bold text-slate-800 leading-tight">{dayLabel}</div>
+                              <div className="text-[10px] text-slate-400 font-mono uppercase tracking-wide">{dayFullDate}</div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <div className="text-right">
+                              <div className="text-[12px] font-black text-emerald-700 font-mono">{dayTotalKg.toFixed(1)} kg CO₂e</div>
+                              <div className="text-[9px] text-slate-400 font-mono uppercase tracking-wide">{dayLogs.length} {dayLogs.length === 1 ? 'entry' : 'entries'}</div>
+                            </div>
+                            <motion.div animate={{ rotate: isOpen ? 90 : 0 }} transition={{ duration: 0.2 }}>
+                              <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-green-600 transition-colors" />
+                            </motion.div>
+                          </div>
+                        </button>
+
+                        {/* ── Day Entries ── */}
+                        <AnimatePresence initial={false}>
+                          {isOpen && (
+                            <motion.div
+                              initial={{ height: 0 }}
+                              animate={{ height: 'auto' }}
+                              exit={{ height: 0 }}
+                              transition={{ duration: 0.25, ease: 'easeInOut' }}
+                              className="overflow-hidden"
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
+                              <div className="px-3 pb-3 pt-1 space-y-3 border-t border-green-100/40">
+                              {dayLogs.map((log) => {
+                                const rawScore = log.efficiency_score !== null && log.efficiency_score !== undefined ? Number(log.efficiency_score) : null
+                                const isNewScore = rawScore !== null ? rawScore <= 10 : false
+                                const scoreOutOf10 = rawScore !== null ? (isNewScore ? rawScore : rawScore / 10) : 0
+                                const scorePercentage = rawScore !== null ? (isNewScore ? rawScore * 10 : rawScore) : 0
+                                const theme = getThemeProps(rawScore)
+                                let originalText = log.raw_text || ''
+                                let conversation = { questions: [], answers: [], turn: 0 }
+                                if (log.raw_text && log.raw_text.includes('\n---\n')) {
+                                  const parts = log.raw_text.split('\n---\n')
+                                  originalText = parts[0]
+                                  try { conversation = JSON.parse(parts[1]) } catch (e) {}
+                                }
+                                return (
+                                  <motion.div
+                                    key={log.log_id}
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, x: -40 }}
+                                    className={`glass-panel rounded-3xl border ${theme.border} ${theme.glow} transition-all duration-300 relative overflow-hidden bg-gradient-to-b ${theme.bgGrad} mt-2`}
+                                  >
+                                    <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${
+                                      rawScore === null
+                                        ? 'from-slate-400/40 to-slate-300/40'
+                                        : scorePercentage >= 80
+                                          ? 'from-emerald-500/60 to-teal-400/60'
+                                          : scorePercentage >= 50
+                                            ? 'from-amber-500/60 to-orange-400/60'
+                                            : 'from-rose-500/60 to-pink-400/60'
+                                    }`} />
 
-                          {/* Hero Carbon Display Section */}
-                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/40 border border-slate-100/60 p-4 rounded-2xl shadow-sm">
-                            <div className="flex flex-col">
-                              <span className={`text-3xl md:text-4xl font-black font-mono tracking-tight ${theme.text}`}>
-                                {log.calculated_kg !== null && log.calculated_kg !== undefined ? (
-                                  <>
-                                    {log.calculated_kg.toFixed(1)} <span className="text-sm md:text-base font-bold text-slate-500 font-sans">kg CO₂e</span>
-                                  </>
-                                ) : (
-                                  <span className="text-sm md:text-base font-bold text-slate-400 font-sans">No Carbon Data</span>
-                                )}
-                              </span>
-                              <span className="text-[10px] text-slate-400 font-mono uppercase tracking-wider font-bold">Absolute Footprint</span>
-                            </div>
-                            
-                            {/* Score Gauge out of 10 */}
-                            {log.efficiency_score !== null && log.efficiency_score !== undefined ? (
-                              <div className="flex items-center gap-3 bg-white/60 p-2.5 rounded-xl border border-slate-200/20">
-                                <div className="relative w-10 h-10 flex items-center justify-center shrink-0">
-                                  <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-                                    <circle cx="18" cy="18" r="16" fill="none" stroke="rgba(0,0,0,0.03)" strokeWidth="2.5" />
-                                    <circle 
-                                      cx="18" 
-                                      cy="18" 
-                                      r="16" 
-                                      fill="none" 
-                                      stroke={theme.accentLight} 
-                                      strokeWidth="3.5" 
-                                      strokeDasharray="100" 
-                                      strokeDashoffset={100 - scorePercentage}
-                                      strokeLinecap="round"
-                                      className="transition-all duration-1000 ease-out"
-                                    />
-                                  </svg>
-                                  <span className="absolute text-[12px] font-black text-slate-800 font-mono">
-                                    {scoreOutOf10.toFixed(0)}
-                                  </span>
-                                </div>
-                                <div className="flex flex-col">
-                                  <span className="text-[12px] font-black text-slate-700 leading-none">
-                                    {scoreOutOf10.toFixed(1)} <span className="text-[10px] text-slate-400 font-normal">/ 10</span>
-                                  </span>
-                                  <span className="text-[9px] text-slate-500 font-mono uppercase tracking-wide mt-0.5">Efficiency Score</span>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="flex items-center justify-center px-4 py-2.5 bg-white/60 rounded-xl border border-slate-200/20 text-[10px] font-mono text-slate-400 font-bold uppercase tracking-wider">
-                                Non-Calculable
-                              </div>
-                            )}
-                          </div>
-
-                          {/* User raw text input */}
-                          <p className="text-[13.5px] text-slate-600 leading-relaxed bg-slate-50/50 px-4 py-2.5 rounded-xl border border-slate-200/30 font-mono italic">
-                            “{originalText}”
-                          </p>
-
-                          {/* AI Warm Narrative */}
-                          {log.narrative && (
-                            <div className="bg-white/45 border border-slate-100 rounded-2xl p-4 shadow-sm">
-                              <div className="flex items-center gap-1.5 mb-2">
-                                <Sparkles className={`w-3.5 h-3.5 ${theme.text}`} />
-                                <span className={`text-[11.5px] font-bold uppercase tracking-widest font-mono ${theme.text}`}>AI Footprint Analysis</span>
-                              </div>
-                              <p className="text-[14.5px] md:text-[15.5px] text-slate-700 leading-relaxed font-medium">
-                                {log.narrative}
-                              </p>
-                            </div>
-                          )}
-
-                          {/* Q&A Clarifying conversation block */}
-                          {((conversation.questions && conversation.questions.length > 0) || (conversation.answers && conversation.answers.length > 0)) && (
-                            <div className="bg-emerald-500/[0.04] backdrop-blur-md border border-emerald-500/15 rounded-2xl p-4 space-y-3 shadow-sm transition-all duration-300">
-                              <div className="flex items-center gap-1.5 mb-1">
-                                <HelpCircle className={`w-3.5 h-3.5 ${theme.text}`} />
-                                <span className={`text-[11.5px] font-bold uppercase tracking-widest font-mono ${theme.text}`}>AI Follow-up Conversation ({conversation.turn}/3)</span>
-                              </div>
-                              
-                              {/* Conversation History */}
-                              <div className="space-y-3">
-                                {conversation.questions.map((qText, qIdx) => {
-                                  const ansText = conversation.answers[qIdx];
-                                  return (
-                                    <div key={qIdx} className="space-y-2 text-[13px] leading-relaxed">
-                                      <div className="bg-white/60 border border-slate-100 p-2.5 rounded-xl">
-                                        <span className="font-bold text-slate-500 block text-[10px] uppercase font-mono tracking-wider mb-0.5">AI Question:</span>
-                                        <p className="text-slate-800 whitespace-pre-line">{qText}</p>
+                                    <div className="p-5 space-y-4">
+                                      {/* Top Row: Time & Status & Delete */}
+                                      <div className="flex justify-between items-start">
+                                        <div className="flex flex-col gap-0.5">
+                                          <span className="text-[11px] font-bold text-slate-400 font-mono uppercase tracking-wide">
+                                            {new Date(log.created_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+                                          </span>
+                                          <div className="flex items-center gap-1.5 mt-0.5">
+                                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border uppercase tracking-wider font-mono ${theme.badge}`}>
+                                              {theme.label}
+                                            </span>
+                                          </div>
+                                        </div>
+                                        
+                                        <button
+                                          onClick={() => handleDeleteLog(log.log_id)}
+                                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+                                          title="Delete log"
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
                                       </div>
-                                      {ansText && (
-                                        <div className="bg-emerald-500/[0.06] border border-emerald-500/10 p-2.5 rounded-xl ml-4">
-                                          <span className="font-bold text-emerald-600 block text-[10px] uppercase font-mono tracking-wider mb-0.5">Your Response:</span>
-                                          <p className="text-slate-700">{ansText}</p>
+
+                                      {/* Hero Carbon Display Section */}
+                                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/40 border border-slate-100/60 p-4 rounded-2xl shadow-sm">
+                                        <div className="flex flex-col">
+                                          <span className={`text-3xl md:text-4xl font-black font-mono tracking-tight ${theme.text}`}>
+                                            {log.calculated_kg !== null && log.calculated_kg !== undefined ? (
+                                              <>
+                                                {log.calculated_kg.toFixed(1)} <span className="text-sm md:text-base font-bold text-slate-500 font-sans">kg CO₂e</span>
+                                              </>
+                                            ) : (
+                                              <span className="text-sm md:text-base font-bold text-slate-400 font-sans">No Carbon Data</span>
+                                            )}
+                                          </span>
+                                          <span className="text-[10px] text-slate-400 font-mono uppercase tracking-wider font-bold">Absolute Footprint</span>
+                                        </div>
+                                        
+                                        {log.efficiency_score !== null && log.efficiency_score !== undefined ? (
+                                          <div className="flex items-center gap-3 bg-white/60 p-2.5 rounded-xl border border-slate-200/20">
+                                            <div className="relative w-10 h-10 flex items-center justify-center shrink-0">
+                                              <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                                                <circle cx="18" cy="18" r="16" fill="none" stroke="rgba(0,0,0,0.03)" strokeWidth="2.5" />
+                                                <circle 
+                                                  cx="18" 
+                                                  cy="18" 
+                                                  r="16" 
+                                                  fill="none" 
+                                                  stroke={theme.accentLight} 
+                                                  strokeWidth="3.5" 
+                                                  strokeDasharray="100" 
+                                                  strokeDashoffset={100 - scorePercentage}
+                                                  strokeLinecap="round"
+                                                  className="transition-all duration-1000 ease-out"
+                                                />
+                                              </svg>
+                                              <span className="absolute text-[12px] font-black text-slate-800 font-mono">
+                                                {scoreOutOf10.toFixed(0)}
+                                              </span>
+                                            </div>
+                                            <div className="flex flex-col">
+                                              <span className="text-[12px] font-black text-slate-700 leading-none">
+                                                {scoreOutOf10.toFixed(1)} <span className="text-[10px] text-slate-400 font-normal">/ 10</span>
+                                              </span>
+                                              <span className="text-[9px] text-slate-500 font-mono uppercase tracking-wide mt-0.5">Efficiency Score</span>
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          <div className="flex items-center justify-center px-4 py-2.5 bg-white/60 rounded-xl border border-slate-200/20 text-[10px] font-mono text-slate-400 font-bold uppercase tracking-wider">
+                                            Non-Calculable
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      {/* User raw text input */}
+                                      <p className="text-[13.5px] text-slate-600 leading-relaxed bg-slate-50/50 px-4 py-2.5 rounded-xl border border-slate-200/30 font-mono italic">
+                                        "{originalText}"
+                                      </p>
+
+                                      {/* AI Warm Narrative */}
+                                      {log.narrative && (
+                                        <div className="bg-white/45 border border-slate-100 rounded-2xl p-4 shadow-sm">
+                                          <div className="flex items-center gap-1.5 mb-2">
+                                            <Sparkles className={`w-3.5 h-3.5 ${theme.text}`} />
+                                            <span className={`text-[11.5px] font-bold uppercase tracking-widest font-mono ${theme.text}`}>AI Footprint Analysis</span>
+                                          </div>
+                                          <p className="text-[14.5px] md:text-[15.5px] text-slate-700 leading-relaxed font-medium">
+                                            {log.narrative}
+                                          </p>
+                                        </div>
+                                      )}
+
+                                      {/* Q&A Clarifying conversation block */}
+                                      {((conversation.questions && conversation.questions.length > 0) || (conversation.answers && conversation.answers.length > 0)) && (
+                                        <div className="bg-emerald-500/[0.04] backdrop-blur-md border border-emerald-500/15 rounded-2xl p-4 space-y-3 shadow-sm transition-all duration-300">
+                                          <div className="flex items-center gap-1.5 mb-1">
+                                            <HelpCircle className={`w-3.5 h-3.5 ${theme.text}`} />
+                                            <span className={`text-[11.5px] font-bold uppercase tracking-widest font-mono ${theme.text}`}>AI Follow-up Conversation ({conversation.turn}/3)</span>
+                                          </div>
+                                          <div className="space-y-3">
+                                            {conversation.questions.map((qText, qIdx) => {
+                                              const ansText = conversation.answers[qIdx];
+                                              return (
+                                                <div key={qIdx} className="space-y-2 text-[13px] leading-relaxed">
+                                                  <div className="bg-white/60 border border-slate-100 p-2.5 rounded-xl">
+                                                    <span className="font-bold text-slate-500 block text-[10px] uppercase font-mono tracking-wider mb-0.5">AI Question:</span>
+                                                    <p className="text-slate-800 whitespace-pre-line">{qText}</p>
+                                                  </div>
+                                                  {ansText && (
+                                                    <div className="bg-emerald-500/[0.06] border border-emerald-500/10 p-2.5 rounded-xl ml-4">
+                                                      <span className="font-bold text-emerald-600 block text-[10px] uppercase font-mono tracking-wider mb-0.5">Your Response:</span>
+                                                      <p className="text-slate-700">{ansText}</p>
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              );
+                                            })}
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      {/* Expandable Breakdown Layer */}
+                                      {log.causes && log.causes.length > 0 && (
+                                        <div className="border border-slate-100 rounded-2xl overflow-hidden bg-white/20">
+                                          <button
+                                            onClick={() => toggleBreakdown(log.log_id)}
+                                            className="w-full flex items-center justify-between p-3 hover:bg-white/30 transition-colors"
+                                          >
+                                            <div className="flex items-center gap-2">
+                                              <Layers className={`w-3.5 h-3.5 ${theme.text}`} />
+                                              <span className="text-[12px] font-bold text-slate-700 font-mono uppercase tracking-wider">
+                                                Emissions Trace Breakdown
+                                              </span>
+                                              <span className="text-[10.5px] font-bold bg-slate-100 px-1.5 py-0.5 rounded-full text-slate-500 font-mono">
+                                                {log.causes.length} sources
+                                              </span>
+                                            </div>
+                                            <motion.div
+                                              animate={{ rotate: expandedBreakdowns[log.log_id] ? 180 : 0 }}
+                                              transition={{ duration: 0.2 }}
+                                            >
+                                              <ChevronRight className="w-4 h-4 text-slate-400" />
+                                            </motion.div>
+                                          </button>
+
+                                          <AnimatePresence initial={false}>
+                                            {expandedBreakdowns[log.log_id] && (
+                                              <motion.div
+                                                initial={{ height: 0 }}
+                                                animate={{ height: 'auto' }}
+                                                exit={{ height: 0 }}
+                                                transition={{ duration: 0.2, ease: 'easeInOut' }}
+                                                className="overflow-hidden border-t border-slate-100"
+                                              >
+                                                <div className="p-3.5 space-y-3 bg-white/40">
+                                                  {log.causes.map((cause, idx) => {
+                                                    const totalCausesKg = log.causes.reduce((sum, c) => sum + (c.kg || 0), 0)
+                                                    const proportion = totalCausesKg > 0 ? ((cause.kg || 0) / totalCausesKg) * 100 : 0;
+                                                    return (
+                                                      <div key={idx} className="space-y-1.5">
+                                                        <div className="flex items-start justify-between gap-3 text-[12.5px]">
+                                                          <div className="flex-1 min-w-0">
+                                                            {cause.label && (
+                                                              <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400 font-mono block mb-0.5">
+                                                                {cause.label}
+                                                              </span>
+                                                            )}
+                                                            <span className="text-[12.5px] text-slate-700 font-medium leading-snug block">
+                                                              {cause.activity}
+                                                            </span>
+                                                          </div>
+                                                          <div className="flex items-center gap-1.5 shrink-0">
+                                                            <span className="font-mono font-bold text-slate-800">{cause.kg.toFixed(1)} kg</span>
+                                                            <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full font-mono ${
+                                                              cause.impact === 'high' ? 'bg-rose-100 text-rose-700'
+                                                              : cause.impact === 'medium' ? 'bg-amber-100 text-amber-700'
+                                                              : 'bg-emerald-100 text-emerald-700'
+                                                            }`}>
+                                                              {cause.impact}
+                                                            </span>
+                                                          </div>
+                                                        </div>
+                                                        <div className="h-1 w-full bg-slate-200/50 rounded-full overflow-hidden">
+                                                          <div 
+                                                            className={`h-full rounded-full ${
+                                                              cause.impact === 'high' ? 'bg-rose-400'
+                                                              : cause.impact === 'medium' ? 'bg-amber-400'
+                                                              : 'bg-emerald-400'
+                                                            }`}
+                                                            style={{ width: `${proportion}%` }}
+                                                          />
+                                                        </div>
+                                                      </div>
+                                                    );
+                                                  })}
+                                                </div>
+                                              </motion.div>
+                                            )}
+                                          </AnimatePresence>
+                                        </div>
+                                      )}
+
+                                      {/* Eco Recommendations */}
+                                      {log.suggestions && log.suggestions.length > 0 && (
+                                        <div className="space-y-3">
+                                          <div className="flex items-center gap-2">
+                                            <Trees className={`w-4.5 h-4.5 ${theme.text}`} />
+                                            <span className={`text-[13px] font-bold uppercase tracking-widest font-mono ${theme.text}`}>Eco Recommendations</span>
+                                          </div>
+                                          <div className="flex flex-col gap-3">
+                                            {log.suggestions.map((s, idx) => {
+                                              const title = typeof s === 'string' ? s : (s.title || '')
+                                              const detail = typeof s === 'object' ? (s.detail || '') : ''
+                                              const steps = typeof s === 'object' && Array.isArray(s.steps) ? s.steps : []
+                                              return (
+                                                <div 
+                                                  key={idx} 
+                                                  className="bg-emerald-500/[0.06] backdrop-blur-md border border-emerald-500/15 rounded-2xl p-4 transition-all duration-300 hover:bg-emerald-500/[0.12] hover:border-emerald-500/30 hover:scale-[1.01] hover:shadow-lg hover:shadow-emerald-500/[0.03]"
+                                                >
+                                                  <div className="flex items-start justify-between gap-4">
+                                                    <div className="flex-1 min-w-0">
+                                                      <div className="flex items-center gap-2.5 mb-1.5">
+                                                        <span className="w-6 h-6 rounded-full text-[12px] font-black flex items-center justify-center shrink-0 bg-emerald-600 text-white shadow-sm shadow-emerald-600/10">
+                                                          {idx + 1}
+                                                        </span>
+                                                        <span className="text-[15.5px] md:text-[16px] font-bold leading-snug text-emerald-900">
+                                                          {title}
+                                                        </span>
+                                                      </div>
+                                                      {detail && (
+                                                        <p className="text-[13.5px] md:text-[14px] text-slate-700 leading-relaxed mb-2 pl-8 font-medium">
+                                                          {detail}
+                                                        </p>
+                                                      )}
+                                                      {steps.length > 0 && (
+                                                        <div className="flex flex-col gap-1.5 pl-8 mt-2.5">
+                                                          {steps.map((step, si) => (
+                                                            <div 
+                                                              key={si} 
+                                                              className="flex items-start gap-2.5 text-[12.5px] md:text-[13px] text-slate-700 bg-white/70 hover:bg-emerald-50/70 border border-emerald-500/10 hover:border-emerald-500/20 px-3 py-1.5 rounded-xl transition-all duration-200 hover:translate-x-0.5"
+                                                            >
+                                                              <span className="font-black mt-0.5 shrink-0 text-emerald-500">›</span>
+                                                              <span className="leading-snug">{step}</span>
+                                                            </div>
+                                                          ))}
+                                                        </div>
+                                                      )}
+                                                    </div>
+                                                  </div>
+                                                </div>
+                                              )
+                                            })}
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      {/* Motivational message */}
+                                      {(log.motivation || log.eco_advice) && (
+                                        <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${theme.motivationBg} px-5 py-4.5 mt-2.5 border border-white/5`}>
+                                          <div className="absolute top-1 right-4 text-white/5 text-8xl font-serif leading-none select-none pointer-events-none">"</div>
+                                          <div className="flex items-start gap-3.5 relative z-10">
+                                            <Leaf className="w-4.5 h-4.5 text-emerald-400 shrink-0 mt-0.5" />
+                                            <p className="text-[14.5px] md:text-[15.5px] text-slate-100 leading-relaxed font-medium italic">
+                                              {log.motivation || log.eco_advice}
+                                            </p>
+                                          </div>
                                         </div>
                                       )}
                                     </div>
-                                  );
-                                })}
-                              </div>
-
-
-                            </div>
-                          )}
-
-                          {/* Expandable Breakdown Layer */}
-                          {log.causes && log.causes.length > 0 && (
-                            <div className="border border-slate-100 rounded-2xl overflow-hidden bg-white/20">
-                              <button
-                                onClick={() => toggleBreakdown(log.log_id)}
-                                className="w-full flex items-center justify-between p-3 hover:bg-white/30 transition-colors"
-                              >
-                                <div className="flex items-center gap-2">
-                                  <Layers className={`w-3.5 h-3.5 ${theme.text}`} />
-                                  <span className="text-[12px] font-bold text-slate-700 font-mono uppercase tracking-wider">
-                                    Emissions Trace Breakdown
-                                  </span>
-                                  <span className="text-[10.5px] font-bold bg-slate-100 px-1.5 py-0.5 rounded-full text-slate-500 font-mono">
-                                    {log.causes.length} sources
-                                  </span>
-                                </div>
-                                <motion.div
-                                  animate={{ rotate: expandedBreakdowns[log.log_id] ? 180 : 0 }}
-                                  transition={{ duration: 0.2 }}
-                                >
-                                  <ChevronRight className="w-4 h-4 text-slate-400" />
-                                </motion.div>
-                              </button>
-
-                              <AnimatePresence initial={false}>
-                                {expandedBreakdowns[log.log_id] && (
-                                  <motion.div
-                                    initial={{ height: 0 }}
-                                    animate={{ height: 'auto' }}
-                                    exit={{ height: 0 }}
-                                    transition={{ duration: 0.2, ease: 'easeInOut' }}
-                                    className="overflow-hidden border-t border-slate-100"
-                                  >
-                                    <div className="p-3.5 space-y-3 bg-white/40">
-                                      {log.causes.map((cause, idx) => {
-                                        const totalCausesKg = log.causes.reduce((sum, c) => sum + (c.kg || 0), 0)
-                                        const proportion = totalCausesKg > 0 ? ((cause.kg || 0) / totalCausesKg) * 100 : 0;
-                                        
-                                        return (
-                                          <div key={idx} className="space-y-1.5">
-                                            <div className="flex items-start justify-between gap-3 text-[12.5px]">
-                                              <div className="flex-1 min-w-0">
-                                                {cause.label && (
-                                                  <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400 font-mono block mb-0.5">
-                                                    {cause.label}
-                                                  </span>
-                                                )}
-                                                <span className="text-[12.5px] text-slate-700 font-medium leading-snug block">
-                                                  {cause.activity}
-                                                </span>
-                                              </div>
-                                              <div className="flex items-center gap-1.5 shrink-0">
-                                                <span className="font-mono font-bold text-slate-800">{cause.kg.toFixed(1)} kg</span>
-                                                <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full font-mono ${
-                                                  cause.impact === 'high' ? 'bg-rose-100 text-rose-700'
-                                                  : cause.impact === 'medium' ? 'bg-amber-100 text-amber-700'
-                                                  : 'bg-emerald-100 text-emerald-755'
-                                                }`}>
-                                                  {cause.impact}
-                                                </span>
-                                              </div>
-                                            </div>
-                                            {/* Proportional visual bar */}
-                                            <div className="h-1 w-full bg-slate-200/50 rounded-full overflow-hidden">
-                                              <div 
-                                                className={`h-full rounded-full ${
-                                                  cause.impact === 'high' ? 'bg-rose-400'
-                                                  : cause.impact === 'medium' ? 'bg-amber-400'
-                                                  : 'bg-emerald-400'
-                                                }`}
-                                                style={{ width: `${proportion}%` }}
-                                              />
-                                            </div>
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
                                   </motion.div>
-                                )}
-                              </AnimatePresence>
-                            </div>
-                          )}
-
-                          {/* Eco Recommendations */}
-                          {log.suggestions && log.suggestions.length > 0 && (
-                            <div className="space-y-3">
-                              <div className="flex items-center gap-2">
-                                <Trees className={`w-4.5 h-4.5 ${theme.text}`} />
-                                <span className={`text-[13px] font-bold uppercase tracking-widest font-mono ${theme.text}`}>Eco Recommendations</span>
+                                )
+                              })}
                               </div>
-                              
-                              <div className="flex flex-col gap-3">
-                                {log.suggestions.map((s, idx) => {
-                                  const title = typeof s === 'string' ? s : (s.title || '')
-                                  const detail = typeof s === 'object' ? (s.detail || '') : ''
-                                  const steps = typeof s === 'object' && Array.isArray(s.steps) ? s.steps : []
-                                  
-                                  return (
-                                    <div 
-                                      key={idx} 
-                                      className="bg-emerald-500/[0.06] backdrop-blur-md border border-emerald-500/15 rounded-2xl p-4 transition-all duration-300 hover:bg-emerald-500/[0.12] hover:border-emerald-500/30 hover:scale-[1.01] hover:shadow-lg hover:shadow-emerald-500/[0.03]"
-                                    >
-                                      <div className="flex items-start justify-between gap-4">
-                                        <div className="flex-1 min-w-0">
-                                          <div className="flex items-center gap-2.5 mb-1.5">
-                                            <span className="w-6 h-6 rounded-full text-[12px] font-black flex items-center justify-center shrink-0 bg-emerald-600 text-white shadow-sm shadow-emerald-600/10">
-                                              {idx + 1}
-                                            </span>
-                                            <span className="text-[15.5px] md:text-[16px] font-bold leading-snug text-emerald-900">
-                                              {title}
-                                            </span>
-                                          </div>
-                                          {detail && (
-                                            <p className="text-[13.5px] md:text-[14px] text-slate-700 leading-relaxed mb-2 pl-8 font-medium">
-                                              {detail}
-                                            </p>
-                                          )}
-                                          {steps.length > 0 && (
-                                            <div className="flex flex-col gap-1.5 pl-8 mt-2.5">
-                                              {steps.map((step, si) => (
-                                                <div 
-                                                  key={si} 
-                                                  className="flex items-start gap-2.5 text-[12.5px] md:text-[13px] text-slate-700 bg-white/70 hover:bg-emerald-50/70 border border-emerald-500/10 hover:border-emerald-500/20 px-3 py-1.5 rounded-xl transition-all duration-200 hover:translate-x-0.5"
-                                                >
-                                                  <span className="font-black mt-0.5 shrink-0 text-emerald-500">›</span>
-                                                  <span className="leading-snug">{step}</span>
-                                                </div>
-                                              ))}
-                                            </div>
-                                          )}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  )
-                                })}
-                              </div>
-                            </div>
+                            </motion.div>
                           )}
-
-                          {/* Motivational message */}
-                          {(log.motivation || log.eco_advice) && (
-                            <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${theme.motivationBg} px-5 py-4.5 mt-2.5 border border-white/5`}>
-                              <div className="absolute top-1 right-4 text-white/5 text-8xl font-serif leading-none select-none pointer-events-none">"</div>
-                              <div className="flex items-start gap-3.5 relative z-10">
-                                <Leaf className="w-4.5 h-4.5 text-emerald-400 shrink-0 mt-0.5" />
-                                <p className="text-[14.5px] md:text-[15.5px] text-slate-100 leading-relaxed font-medium italic">
-                                  {log.motivation || log.eco_advice}
-                                </p>
-                              </div>
-                            </div>
-                          )}
-                        </div>
+                        </AnimatePresence>
                       </motion.div>
                     )
                   })}
@@ -3772,19 +3832,21 @@ Current Turn: ${conversation.turn} of 3 (Max 3 turns. If turn is 3, you MUST set
                     
                     <button
                       type="submit"
+                      className="cta"
                       disabled={submitting || !journalText.trim()}
-                      className={`py-2.5 px-5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all
-                        ${submitting || !journalText.trim()
-                          ? 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300'
-                          : 'bg-green-600 text-white hover:bg-green-500 active:scale-[0.98]'
-                        }`}
                     >
                       {submitting ? (
-                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <>
+                          <span>Syncing...</span>
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" style={{ marginLeft: 8, position: 'relative', color: '#234567' }} />
+                        </>
                       ) : (
                         <>
-                          Sync Log
-                          <Send className="w-3.5 h-3.5" />
+                          <span>Sync Log</span>
+                          <svg className="cta-arrow" width="15px" height="10px" viewBox="0 0 13 10">
+                            <path d="M1,5 L11,5" />
+                            <polyline points="8 1 12 5 8 9" />
+                          </svg>
                         </>
                       )}
                     </button>
